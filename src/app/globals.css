@@ -1,0 +1,312 @@
+/* src/app/globals.css */
+/* SIDEKICK — Multi-Zone Luxury Theme System */
+
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&family=Inter:wght@300..700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ═══════════════════════════════════════════════════════════════════════ */
+/* FIXED FRAME PALETTES                                                     */
+/* ═══════════════════════════════════════════════════════════════════════ */
+
+:root {
+  --sk-bg: #0C1519;
+  --sk-bg-card: #162127;
+  --sk-bg-elevated: #1C1C1E;
+
+  --sk-text: #F0E6D2;
+  --sk-text-body: #F0E6D2;
+  --sk-text-muted: rgba(240, 230, 210, 0.55);
+  --sk-text-dim: rgba(240, 230, 210, 0.35);
+  --sk-text-faint: rgba(240, 230, 210, 0.18);
+
+  --sk-accent: #CF9D7B;
+  --sk-accent-bright: #E0B08D;
+  --sk-accent-soft: rgba(207, 157, 123, 0.5);
+  --sk-accent-glow: rgba(207, 157, 123, 0.12);
+
+  --sk-secondary: #724B39;
+  --sk-tertiary: #3A3534;
+
+  --sk-border: rgba(240, 230, 210, 0.08);
+  --sk-border-strong: rgba(240, 230, 210, 0.15);
+  --sk-border-accent: rgba(207, 157, 123, 0.3);
+
+  /* CARD (inverted) */
+  --sk-card-bg: #F0E6D2;
+  --sk-card-text: #0C1519;
+
+  --font-serif: 'Cormorant Garamond', 'Georgia', serif;
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+/* ─── ONBOARDING ZONE ─── */
+.zone-onboarding {
+  --sk-bg: #0A3323;
+  --sk-bg-card: #105666;
+  --sk-bg-elevated: #0A3323;
+
+  --sk-text: #F7F4D5;
+  --sk-text-body: #F7F4D5;
+  --sk-text-muted: rgba(247, 244, 213, 0.6);
+  --sk-text-dim: rgba(247, 244, 213, 0.4);
+  --sk-text-faint: rgba(247, 244, 213, 0.2);
+
+  --sk-accent: #D3968C;
+  --sk-accent-bright: #DFA69C;
+  --sk-accent-soft: rgba(211, 150, 140, 0.5);
+  --sk-accent-glow: rgba(211, 150, 140, 0.18);
+
+  --sk-secondary: #839958;
+  --sk-tertiary: #105666;
+
+  --sk-border: rgba(247, 244, 213, 0.08);
+  --sk-border-strong: rgba(247, 244, 213, 0.15);
+  --sk-border-accent: rgba(211, 150, 140, 0.35);
+
+  --sk-card-bg: #105666;
+  --sk-card-text: #F7F4D5;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════ */
+/* CANVAS THEMES                                                            */
+/* ═══════════════════════════════════════════════════════════════════════ */
+
+/* ─── 🍷 BURGUNDY — Wine BG + Cream Card ─── */
+.theme-chocolate {
+  --sk-bg: #2A0A0E;
+  --sk-bg-card: #3D0F14;
+  --sk-bg-elevated: #1A0508;
+
+  --sk-text: #F0E6D2;
+  --sk-text-body: #F0E6D2;
+  --sk-text-muted: rgba(240, 230, 210, 0.6);
+  --sk-text-dim: rgba(240, 230, 210, 0.38);
+  --sk-text-faint: rgba(240, 230, 210, 0.2);
+
+  --sk-accent: #B8860B;
+  --sk-accent-bright: #D4A015;
+  --sk-accent-soft: rgba(184, 134, 11, 0.5);
+  --sk-accent-glow: rgba(184, 134, 11, 0.2);
+
+  --sk-secondary: #6F0D1B;
+  --sk-tertiary: #7A2B32;
+
+  --sk-border: rgba(240, 230, 210, 0.1);
+  --sk-border-strong: rgba(240, 230, 210, 0.2);
+  --sk-border-accent: rgba(184, 134, 11, 0.4);
+
+  /* CARD — cream envelope on wine */
+  --sk-card-bg: #F0E6D2;
+  --sk-card-text: #2A0A0E;
+}
+
+/* ─── 🌙 MIDNIGHT — Black BG + Charcoal Card ─── */
+/* ─── 🌙 MIDNIGHT — Black BG + Graphite Card + Cream Text ─── */
+.theme-midnight {
+  --sk-bg: #0C1519;                /* Chinese Black */
+  --sk-bg-card: #162127;
+  --sk-bg-elevated: #1C1C1E;
+
+  --sk-text: #F0E6D2;               /* Warm cream — headlines (NOT brass) */
+  --sk-text-body: #F0E6D2;
+  --sk-text-muted: rgba(240, 230, 210, 0.6);
+  --sk-text-dim: rgba(240, 230, 210, 0.35);
+  --sk-text-faint: rgba(240, 230, 210, 0.18);
+
+  --sk-accent: #CF9D7B;             /* Antique Brass — ONLY for small accents */
+  --sk-accent-bright: #E0B08D;
+  --sk-accent-soft: rgba(207, 157, 123, 0.4);
+  --sk-accent-glow: rgba(207, 157, 123, 0.12);
+
+  --sk-secondary: #724B39;
+  --sk-tertiary: #3A3534;
+
+  --sk-border: rgba(240, 230, 210, 0.08);
+  --sk-border-strong: rgba(240, 230, 210, 0.15);
+  --sk-border-accent: rgba(207, 157, 123, 0.25);
+
+  /* CARD — cool graphite, marble bar top */
+  --sk-card-bg: #1F2226;            /* Cool graphite grey (not warm) */
+  --sk-card-text: #F0E6D2;          /* Warm cream text — HIGH contrast */
+}
+
+/* ─── 🌿 BOTANICAL — Green BG + Deeper Forest Card ─── */
+.theme-botanical {
+  --sk-bg: #0A3323;
+  --sk-bg-card: #105666;
+  --sk-bg-elevated: #051A11;
+
+  --sk-text: #F7F4D5;
+  --sk-text-body: #F7F4D5;
+  --sk-text-muted: rgba(247, 244, 213, 0.6);
+  --sk-text-dim: rgba(247, 244, 213, 0.4);
+  --sk-text-faint: rgba(247, 244, 213, 0.2);
+
+  --sk-accent: #D3968C;
+  --sk-accent-bright: #DFA69C;
+  --sk-accent-soft: rgba(211, 150, 140, 0.5);
+  --sk-accent-glow: rgba(211, 150, 140, 0.15);
+
+  --sk-secondary: #839958;
+  --sk-tertiary: #105666;
+
+  --sk-border: rgba(247, 244, 213, 0.08);
+  --sk-border-strong: rgba(247, 244, 213, 0.15);
+  --sk-border-accent: rgba(211, 150, 140, 0.3);
+
+  /* CARD — deeper forest leaf */
+  --sk-card-bg: #0D2A1D;
+  --sk-card-text: #F7F4D5;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════ */
+/* BASE STYLES                                                              */
+/* ═══════════════════════════════════════════════════════════════════════ */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  background-color: var(--sk-bg);
+  transition: background-color 0.5s ease;
+}
+
+body {
+  background-color: var(--sk-bg);
+  color: var(--sk-text-body, var(--sk-text));
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  margin: 0;
+  padding: 0;
+  transition: background-color 0.5s ease, color 0.5s ease;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-serif);
+  color: var(--sk-text);
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  line-height: 1.15;
+  transition: color 0.5s ease;
+}
+
+::selection {
+  background-color: var(--sk-accent-soft);
+  color: var(--sk-text-body, var(--sk-text));
+}
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: var(--sk-bg); }
+::-webkit-scrollbar-thumb { background: var(--sk-border-strong); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--sk-accent-soft); }
+
+*:focus-visible {
+  outline: 1px solid var(--sk-accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════ */
+/* UTILITY CLASSES                                                          */
+/* ═══════════════════════════════════════════════════════════════════════ */
+
+.font-serif { font-family: var(--font-serif); }
+.font-sans  { font-family: var(--font-sans); }
+.font-mono  { font-family: var(--font-mono); }
+
+.serif-italic {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-weight: 400;
+  color: var(--sk-text-muted);
+}
+
+.label-mono {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════ */
+/* NUCLEAR OVERRIDES — Kill old hardcoded colors                            */
+/* ═══════════════════════════════════════════════════════════════════════ */
+
+main, section, header, footer,
+div[class*="min-h-screen"] {
+  background-color: var(--sk-bg);
+}
+
+[style*="#0E0E13"], [style*="#0e0e13"],
+[style*="#0A0A0F"], [style*="#0a0a0f"],
+[style*="#0A1422"], [style*="#0a1422"] {
+  background-color: var(--sk-bg) !important;
+}
+
+[style*="#15151c"], [style*="#13131a"],
+[style*="#17171f"], [style*="#131D2C"], [style*="#131d2c"] {
+  background-color: var(--sk-bg-card) !important;
+}
+
+[class*="from-[#6B8AFF]"],
+[class*="via-[#D67DF0]"],
+[class*="to-[#A872E8]"] {
+  background-image: none !important;
+  background: transparent !important;
+  -webkit-background-clip: initial !important;
+  background-clip: initial !important;
+  -webkit-text-fill-color: var(--sk-text) !important;
+  color: var(--sk-text) !important;
+}
+
+[class*="shadow-[0_0_60px_rgba(214,125,240"] {
+  box-shadow: 0 0 40px var(--sk-accent-glow) !important;
+}
+
+[class*="text-white/40"],
+[class*="text-white/50"],
+[class*="text-white/60"] {
+  color: var(--sk-text-muted) !important;
+}
+[class*="text-white/30"], [class*="text-white/35"] {
+  color: var(--sk-text-dim) !important;
+}
+[class*="text-white/20"], [class*="text-white/25"] {
+  color: var(--sk-text-faint) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════ */
+/* SHADCN OVERRIDES                                                         */
+/* ═══════════════════════════════════════════════════════════════════════ */
+
+@layer base {
+  :root {
+    --background: 197 43% 8%;
+    --foreground: 39 47% 89%;
+    --card: 197 25% 12%;
+    --card-foreground: 39 47% 89%;
+    --popover: 240 3% 11%;
+    --popover-foreground: 39 47% 89%;
+    --primary: 27 45% 65%;
+    --primary-foreground: 197 43% 8%;
+    --secondary: 197 25% 15%;
+    --secondary-foreground: 39 47% 89%;
+    --muted: 197 25% 15%;
+    --muted-foreground: 39 20% 65%;
+    --accent: 27 45% 65%;
+    --accent-foreground: 197 43% 8%;
+    --destructive: 350 79% 26%;
+    --destructive-foreground: 39 47% 89%;
+    --border: 39 47% 89% / 0.08;
+    --input: 39 47% 89% / 0.08;
+    --ring: 27 45% 65%;
+    --radius: 0.75rem;
+  }
+}
