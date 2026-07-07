@@ -3,8 +3,8 @@ import { ImageResponse } from 'next/og'
 export const runtime = 'edge'
 
 export const size = {
-  width: 32,
-  height: 32,
+  width: 64,
+  height: 64,
 }
 export const contentType = 'image/png'
 
@@ -15,35 +15,42 @@ export default function Icon() {
         style={{
           width: '100%',
           height: '100%',
-          background: 'black',
+          background: '#0C1519',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          borderRadius: 8,
+          borderRadius: 12,
+          position: 'relative',
         }}
       >
-        <div style={{ display: 'flex', position: 'relative' }}>
-          <div
-            style={{
-              width: 14,
-              height: 14,
-              borderRadius: '50%',
-              background: '#5B8DEF',
-              position: 'absolute',
-              left: -5,
-            }}
-          />
-          <div
-            style={{
-              width: 14,
-              height: 14,
-              borderRadius: '50%',
-              background: '#9D4EDD',
-              position: 'absolute',
-              left: 5,
-            }}
-          />
+        {/* The italic S */}
+        <div
+          style={{
+            fontFamily: 'Georgia, serif',
+            fontStyle: 'italic',
+            fontSize: 44,
+            fontWeight: 500,
+            color: '#F0E6D2',
+            lineHeight: 1,
+            marginRight: -2,
+            marginTop: -4,
+          }}
+        >
+          S
         </div>
+
+        {/* The glowing dot */}
+        <div
+          style={{
+            width: 6,
+            height: 6,
+            borderRadius: '50%',
+            background: '#CF9D7B',
+            marginTop: 18,
+            marginLeft: 2,
+            boxShadow: '0 0 8px #CF9D7B',
+          }}
+        />
       </div>
     ),
     { ...size }
