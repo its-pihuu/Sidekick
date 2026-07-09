@@ -20,37 +20,21 @@ export default function Icon() {
           alignItems: 'center',
           justifyContent: 'center',
           borderRadius: 12,
-          position: 'relative',
         }}
       >
-        {/* The italic S */}
         <div
           style={{
             fontFamily: 'Georgia, serif',
             fontStyle: 'italic',
-            fontSize: 44,
-            fontWeight: 500,
+            fontSize: 62,
+            fontWeight: 600,
             color: '#F0E6D2',
             lineHeight: 1,
-            marginRight: -2,
-            marginTop: -4,
+            marginTop: -6,
           }}
         >
           S
         </div>
-
-        {/* The glowing dot */}
-        <div
-          style={{
-            width: 6,
-            height: 6,
-            borderRadius: '50%',
-            background: '#CF9D7B',
-            marginTop: 18,
-            marginLeft: 2,
-            boxShadow: '0 0 8px #CF9D7B',
-          }}
-        />
       </div>
     ),
     { ...size }
