@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { CanvasHeader } from "@/components/canvas/canvas-header";
 import { ViewTabs, ViewMode } from "@/components/canvas/view-tabs";
 import { SectionCard } from "@/components/canvas/section-card";
+import { AIPopup } from "@/components/canvas/ai-popup";
 import { getSectionsInOrder } from "@/data/canvas-sections";
 import {
   CanvasData,
@@ -314,86 +315,17 @@ export default function CanvasPage() {
         </AnimatePresence>
       </main>
 
-      {/* AI POPUP — placeholder until Gemini is wired */}
+      {/* AI POPUP — real Gemini-powered chat */}
       <AnimatePresence>
         {aiPopupSection && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setAiPopupSection(null)}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
-            style={{ backgroundColor: "rgba(0,0,0,0.7)", backdropFilter: "blur(8px)" }}
-          >
-            <motion.div
-              initial={{ scale: 0.94, y: 16, opacity: 0 }}
-              animate={{ scale: 1, y: 0, opacity: 1 }}
-              exit={{ scale: 0.94, y: 16, opacity: 0 }}
-              transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-              onClick={(e) => e.stopPropagation()}
-              className="max-w-md w-full p-8 text-center"
-              style={{
-                backgroundColor: "var(--sk-bg-card)",
-                border: "1px solid rgba(240,230,210,0.08)",
-                borderRadius: "4px",
-              }}
-            >
-              {/* Hairline accent top */}
-              <div
-                className="w-8 h-px mx-auto mb-8"
-                style={{ backgroundColor: "var(--sk-accent)" }}
-              />
-
-              <p
-                className="text-xs uppercase tracking-widest mb-6"
-                style={{
-                  fontFamily: "'JetBrains Mono', monospace",
-                  color: "var(--sk-accent)",
-                  opacity: 0.7,
-                }}
-              >
-                AI · Coming Soon
-              </p>
-
-              <h3
-                className="text-2xl italic mb-3"
-                style={{
-                  fontFamily: "'Cormorant Garamond', serif",
-                  color: "var(--sk-text)",
-                }}
-              >
-                Your thinking partner
-              </h3>
-
-              <p
-                className="text-sm mb-8"
-                style={{
-                  fontFamily: "'Inter', sans-serif",
-                  color: "var(--sk-text)",
-                  opacity: 0.45,
-                  lineHeight: "1.7",
-                }}
-              >
-                Gemini AI is being wired in next.
-                It will help you write, refine, and pressure-test every section.
-              </p>
-
-              <button
-                onClick={() => setAiPopupSection(null)}
-                className="px-8 py-2.5 text-xs uppercase tracking-widest transition-opacity hover:opacity-70"
-                style={{
-                  fontFamily: "'JetBrains Mono', monospace",
-                  backgroundColor: "var(--sk-accent)",
-                  color: "var(--sk-bg)",
-                  border: "none",
-                  borderRadius: "2px",
-                  cursor: "pointer",
-                }}
-              >
-                Got it
-              </button>
-            </motion.div>
-          </motion.div>
+          <AIPopup
+            sectionId={aiPopupSection}
+            sectionName={
+              sections.find((s) => s.id === aiPopupSection)?.title || "this section"
+            }
+            sectionContent={canvas.sections[aiPopupSection] || ""}
+            onClose={() => setAiPopupSection(null)}
+          />
         )}
       </AnimatePresence>
     </div>
