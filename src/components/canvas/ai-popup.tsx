@@ -4,6 +4,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { getProfile, buildProfileContext } from "@/lib/onboarding-store";
 import { motion } from "framer-motion";
 
 interface Message {
@@ -59,6 +60,10 @@ export function AIPopup({
     setIsLoading(true);
 
     try {
+      // Load user's profile and build personalized context for Sidekick
+      const profile = getProfile();
+      const profileContext = buildProfileContext(profile);
+
       const res = await fetch("/api/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -66,6 +71,7 @@ export function AIPopup({
           sectionName,
           sectionContent,
           question,
+          profileContext,
         }),
       });
 

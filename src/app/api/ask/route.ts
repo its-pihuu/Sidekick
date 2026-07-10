@@ -1,5 +1,6 @@
 // src/app/api/ask/route.ts
 // The bridge — browser talks to this, this talks to Gemini
+// Now also passes user profile context to Sidekick
 
 import { NextRequest, NextResponse } from "next/server";
 import { askSidekick } from "@/lib/gemini";
@@ -9,7 +10,7 @@ export const runtime = "nodejs";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { sectionName, sectionContent, question } = body;
+    const { sectionName, sectionContent, question, profileContext } = body;
 
     // ─── VALIDATE ───────────────────────────────────────────────────────
     if (!sectionName || typeof sectionName !== "string") {
@@ -38,6 +39,7 @@ export async function POST(req: NextRequest) {
       sectionName,
       sectionContent: sectionContent || "",
       question,
+      profileContext: profileContext || "",
     });
 
     return NextResponse.json({ answer });
@@ -45,6 +47,6 @@ export async function POST(req: NextRequest) {
     console.error("API /ask error:", error);
     const message =
       error instanceof Error ? error.message : "Something broke on our end.";
-    return NextResponse.json({ error: message }, { status: 500 }); 
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

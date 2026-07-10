@@ -1,5 +1,6 @@
 // src/lib/gemini.ts
 // The brain — talks to Google's Gemini AI in Sidekick's voice
+// Now with USER PROFILE MEMORY
 
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
@@ -10,13 +11,13 @@ if (!apiKey) {
   console.warn("⚠️  GEMINI_API_KEY missing in .env.local");
 }
 
-const genAI = new GoogleGenerativeAI(apiKey as string);
+const genAI = new GoogleGenerativeAI(apiKey || "");
 const model = genAI.getGenerativeModel({ model: "gemini-flash-lite-latest" });
 
-// ─── SIDEKICK'S SYSTEM PROMPT (the personality) ──────────────────────────
-const SIDEKICK_PERSONA = `You are Sidekick — a thinking partner for founders.
+// ─── SIDEKICK'S CORE PERSONA ─────────────────────────────────────────────
+const SIDEKICK_CORE_PERSONA = `You are Sidekick — a thinking partner for founders.
 
-VOICE RULES:
+CORE VOICE:
 - Sharp, witty, slightly cheeky. Never sycophantic.
 - Like a friend in a ₹2 lakh suit who roasts you over whiskey, but genuinely wants you to win.
 - Push back on lazy thinking. Ask hard questions.
@@ -28,25 +29,30 @@ FORMAT RULES:
 - Use plain language. No jargon unless mocking it.
 - No bullet points unless truly needed.
 - No emojis.
-- If they wrote nothing in the section yet, ask ONE sharp question to get them started.
-- If they wrote something weak, name the weakness and suggest a fix.
-- If they wrote something strong, sharpen it further — never just praise.
-
-CONTEXT:
-You'll be given:
-1. The section they're working on (Problem, Solution, etc.)
-2. What they've written so far in that section (may be empty)
-3. Their specific question
-
-Respond as Sidekick — their honest thinking partner.`;
+- If the section is empty, ask ONE sharp question to get them started.
+- If what they wrote is weak, name the weakness and suggest a fix.
+- If what they wrote is strong, sharpen it further — never just praise.`;
 
 // ─── ASK SIDEKICK ─────────────────────────────────────────────────────────
 export async function askSidekick(params: {
   sectionName: string;
   sectionContent: string;
   question: string;
+  profileContext?: string; // NEW — personalized user context
 }): Promise<string> {
-  const { sectionName, sectionContent, question } = params;
+  const { sectionName, sectionContent, question, profileContext } = params;
+
+  // Build the full persona: core + personalization layer
+  const fullPersona = profileContext
+    ? `${SIDEKICK_CORE_PERSONA}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+WHO YOU ARE TALKING TO:
+${profileContext}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Adapt your tone, examples, and depth to fit this person. If they're a first-time builder, don't assume knowledge. If they're experienced, skip the basics. If they asked for brutal honesty, deliver it. If they want warmth, warm up.`
+    : SIDEKICK_CORE_PERSONA;
 
   const userPrompt = `
 SECTION: ${sectionName}
@@ -61,7 +67,7 @@ Respond as Sidekick.`;
 
   try {
     const result = await model.generateContent([
-      { text: SIDEKICK_PERSONA },
+      { text: fullPersona },
       { text: userPrompt },
     ]);
     const response = result.response;
