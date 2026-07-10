@@ -10,8 +10,8 @@ if (!apiKey) {
   console.warn("⚠️  GEMINI_API_KEY missing in .env.local");
 }
 
-const genAI = new GoogleGenerativeAI(apiKey || "");
-const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+const genAI = new GoogleGenerativeAI(apiKey as string);
+const model = genAI.getGenerativeModel({ model: "gemini-flash-lite-latest" });
 
 // ─── SIDEKICK'S SYSTEM PROMPT (the personality) ──────────────────────────
 const SIDEKICK_PERSONA = `You are Sidekick — a thinking partner for founders.
