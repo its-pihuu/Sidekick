@@ -8,6 +8,7 @@ import { CanvasHeader } from "@/components/canvas/canvas-header";
 import { ViewTabs, ViewMode } from "@/components/canvas/view-tabs";
 import { SectionCard } from "@/components/canvas/section-card";
 import { AIPopup } from "@/components/canvas/ai-popup";
+import { DocumentView } from "@/components/canvas/document-view";
 import { getSectionsInOrder } from "@/data/canvas-sections";
 import {
   CanvasData,
@@ -268,50 +269,11 @@ export default function CanvasPage() {
             </motion.div>
           )}
 
-          {/* DOCUMENT MODE — placeholder */}
+          {/* DOCUMENT MODE — real editorial view + PDF export */}
           {viewMode === "document" && (
-            <motion.div
-              key="document"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-              className="flex flex-col items-center justify-center py-40 text-center"
-            >
-              <p
-                className="text-xs uppercase tracking-widest mb-6"
-                style={{
-                  fontFamily: "'JetBrains Mono', monospace",
-                  color: "var(--sk-accent)",
-                  opacity: 0.6,
-                }}
-              >
-                Coming Next
-              </p>
-              <h2
-                className="text-3xl italic mb-4"
-                style={{
-                  fontFamily: "'Cormorant Garamond', serif",
-                  color: "var(--sk-text)",
-                }}
-              >
-                Document View
-              </h2>
-              <p
-                className="text-sm max-w-xs"
-                style={{
-                  fontFamily: "'Inter', sans-serif",
-                  color: "var(--sk-text)",
-                  opacity: 0.4,
-                  lineHeight: "1.7",
-                }}
-              >
-                A clean, export-ready document from your canvas.
-                PDF download included.
-              </p>
-            </motion.div>
+            <DocumentView key="document" canvas={canvas} />
           )}
-
+          
         </AnimatePresence>
       </main>
 
