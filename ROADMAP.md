@@ -54,4 +54,4 @@
 ---
 
 *Updated: July 2026*
-*Founder: Prachi (Pihu)*
+*Founder: Prachi (itspihuu)*

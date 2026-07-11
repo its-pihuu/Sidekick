@@ -1,6 +1,6 @@
 # SIDEKICK — Product Specification
 > "Every great founder has a sidekick."
-> Version 1.0 · July 2026 · Written by Prachi (Pihu), Founder
+> Version 1.0 · July 2026 · Written by Prachi (itspihuu), Founder
 
 ---
 
@@ -359,51 +359,10 @@ When 150 users sign up, premium features become paid.
 - **Users:** Millions → Billions (global scale)
 - **Revenue:** Cross ₹1 Billion+
 - **Market:** Global — every country, every language
-- **Team:** Solo founder (Prachi / Pihu)
+- **Team:** Solo founder (Prachi / itspihuu)
 - **Platform:** Web first → Mobile app later
 - **Position:** The #1 tool founders use before they build anything
 - **Brand recognition:** "Every founder starts with Sidekick"
-
----
-
-## BUILD PRIORITY (current)
-
-### ✅ SHIPPED
-- [x] Luxury landing page (8 sections)
-- [x] Onboarding flow (7 questions + calibration + manifesto + reveal)
-- [x] Canvas Write mode (11 sections, auto-save)
-- [x] 3 canvas themes (Burgundy / Midnight / Botanical)
-- [x] Gemini AI integration (Ask per section)
-- [x] Onboarding memory (AI knows the user)
-- [x] Document view + PDF export
-- [x] Document palette picker (4 palettes)
-- [x] Deployed to Vercel (sidekick-inky.vercel.app)
-- [x] GitHub repo (its-pihuu/Sidekick)
-
-### 🔨 BUILDING NOW
-- [ ] Per-section chat history
-- [ ] Global Ask Sidekick panel
-- [ ] Canvas bento grid view
-
-### 📋 NEXT UP
-- [ ] Canvas mindmap mode
-- [ ] Canvas roadmap mode
-- [ ] Document AI (pitch deck generator)
-- [ ] Multi-project support
-- [ ] Settings page
-- [ ] 11 Specialist AI personas
-
-### 🔮 FUTURE
-- [ ] Supabase database + real auth
-- [ ] Razorpay payments
-- [ ] Notifications (in-app + email)
-- [ ] Referral system
-- [ ] Templates gallery
-- [ ] Voice input
-- [ ] Team collaboration
-- [ ] Mobile app
-- [ ] Custom domain
-- [ ] Internationalization (multi-language)
 
 ---
 
@@ -422,5 +381,5 @@ When 150 users sign up, premium features become paid.
 ---
 
 *This spec is a living document. Updated as Sidekick evolves.*
-*Built by Prachi (Pihu), age 14, solo founder.*
+*Built by Prachi (itspihuu), solo founder.*
 *"The pen is in your hand."*
