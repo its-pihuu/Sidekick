@@ -1,16 +1,17 @@
 // src/app/api/ask/route.ts
 // The bridge — browser talks to this, this talks to Gemini
-// Now also passes user profile context to Sidekick
+// Now supports multi-turn conversation history
 
 import { NextRequest, NextResponse } from "next/server";
-import { askSidekick } from "@/lib/gemini";
+import { askSidekick, ChatTurn } from "@/lib/gemini";
 
 export const runtime = "nodejs";
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { sectionName, sectionContent, question, profileContext } = body;
+    const { sectionName, sectionContent, question, profileContext, history } =
+      body;
 
     // ─── VALIDATE ───────────────────────────────────────────────────────
     if (!sectionName || typeof sectionName !== "string") {
@@ -21,10 +22,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (!question || typeof question !== "string" || !question.trim()) {
-      return NextResponse.json(
-        { error: "Ask me something." },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Ask me something." }, { status: 400 });
     }
 
     if (question.length > 1000) {
@@ -34,12 +32,31 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Validate & sanitize history if present
+    let sanitizedHistory: ChatTurn[] = [];
+    if (Array.isArray(history)) {
+      sanitizedHistory = history
+        .filter(
+          (m) =>
+            m &&
+            (m.role === "user" || m.role === "sidekick") &&
+            typeof m.text === "string"
+        )
+        .map((m) => ({ role: m.role, text: m.text }));
+
+      // Cap at last 20 messages to keep API costs sane
+      if (sanitizedHistory.length > 20) {
+        sanitizedHistory = sanitizedHistory.slice(-20);
+      }
+    }
+
     // ─── CALL SIDEKICK ──────────────────────────────────────────────────
     const answer = await askSidekick({
       sectionName,
       sectionContent: sectionContent || "",
       question,
       profileContext: profileContext || "",
+      history: sanitizedHistory,
     });
 
     return NextResponse.json({ answer });
