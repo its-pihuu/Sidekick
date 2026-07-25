@@ -3,8 +3,9 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { CinematicIntro } from "@/components/brand/cinematic-intro";
 
@@ -18,12 +19,12 @@ const HOW_IT_WORKS = [
   },
   {
     step: "02",
-    title: "Fill your canvas.",
-    detail: "Eleven sections. Every question your product needs to answer.",
+    title: "Chat with your Sidekick.",
+    detail: "Thirteen specialists. Every angle your product needs to sharpen.",
   },
   {
     step: "03",
-    title: "Export your plan.",
+    title: "Ship your plan.",
     detail: "A real document. Ready to share with cofounders, investors, or yourself.",
   },
 ];
@@ -72,7 +73,7 @@ const FAQS = [
   },
   {
     q: "How is this different from ChatGPT?",
-    a: "ChatGPT is a blank box. Sidekick knows what your product plan needs, asks the right questions, and structures your thinking into a real document.",
+    a: "ChatGPT is a blank box. Sidekick knows what your product plan needs, has 13 specialist AIs trained on your business, and structures your thinking into a real document.",
   },
   {
     q: "Do I need to know how to code?",
@@ -84,15 +85,42 @@ const FAQS = [
   },
   {
     q: "When does the AI part launch?",
-    a: "Soon. The canvas works today. The Ask feature is being trained now.",
+    a: "Live now. All 13 AI specialists are working today.",
   },
 ];
 
 // ─── COMPONENT ───────────────────────────────────────────────────────────
 
 export default function LandingPage() {
+  const router = useRouter();
   const [introDone, setIntroDone] = useState(false);
   const [openFAQ, setOpenFAQ] = useState<number | null>(0);
+  const [isReturningUser, setIsReturningUser] = useState(false);
+  const [checkedAuth, setCheckedAuth] = useState(false);
+
+  // ─── CHECK IF USER HAS COMPLETED ONBOARDING ────────────────
+  useEffect(() => {
+    try {
+      const onboarded = localStorage.getItem("sidekick_onboarded");
+      if (onboarded === "true") {
+        setIsReturningUser(true);
+      }
+    } catch {
+      // localStorage unavailable — treat as new user
+    }
+    setCheckedAuth(true);
+  }, []);
+
+  // ─── AUTO-REDIRECT RETURNING USERS AFTER INTRO ──────────────
+  useEffect(() => {
+    if (introDone && isReturningUser && checkedAuth) {
+      router.push("/studio");
+    }
+  }, [introDone, isReturningUser, checkedAuth, router]);
+
+  // Where does the CTA button go?
+  const primaryCTA = isReturningUser ? "/studio" : "/onboarding";
+  const primaryCTALabel = isReturningUser ? "Continue" : "Begin";
 
   return (
     <>
@@ -143,11 +171,11 @@ export default function LandingPage() {
               How
             </a>
             <Link
-              href="/canvas"
+              href={primaryCTA}
               className="font-mono text-[11px] tracking-[0.2em] uppercase transition-opacity hover:opacity-70"
               style={{ color: "var(--sk-text-muted)" }}
             >
-              Enter →
+              {isReturningUser ? "Continue →" : "Enter →"}
             </Link>
           </nav>
         </header>
@@ -211,7 +239,7 @@ export default function LandingPage() {
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Link href="/onboarding">
+              <Link href={primaryCTA}>
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
@@ -222,16 +250,8 @@ export default function LandingPage() {
                     boxShadow: "0 8px 32px var(--sk-accent-glow)",
                   }}
                 >
-                  Begin
+                  {primaryCTALabel}
                 </motion.button>
-              </Link>
-
-              <Link
-                href="/canvas"
-                className="font-mono text-[11px] tracking-[0.25em] uppercase transition-opacity hover:opacity-70 px-6 py-4"
-                style={{ color: "var(--sk-text-muted)" }}
-              >
-                Skip to canvas →
               </Link>
             </div>
           </motion.div>
@@ -563,7 +583,7 @@ export default function LandingPage() {
               Your idea has waited long enough.
             </p>
 
-            <Link href="/onboarding">
+            <Link href={primaryCTA}>
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
@@ -574,7 +594,7 @@ export default function LandingPage() {
                   boxShadow: "0 8px 40px var(--sk-accent-glow)",
                 }}
               >
-                Begin
+                {primaryCTALabel}
               </motion.button>
             </Link>
           </motion.div>
@@ -632,25 +652,25 @@ export default function LandingPage() {
                   Beliefs
                 </a>
                 <Link
-                  href="/canvas"
+                  href="/studio"
                   className="font-mono text-[10px] tracking-[0.25em] uppercase transition-opacity hover:opacity-70"
                   style={{ color: "var(--sk-text-muted)" }}
                 >
-                  Canvas
+                  Studio
                 </Link>
                 <Link
-                  href="/onboarding"
+                  href={primaryCTA}
                   className="font-mono text-[10px] tracking-[0.25em] uppercase transition-opacity hover:opacity-70"
                   style={{ color: "var(--sk-text-muted)" }}
                 >
-                  Begin
+                  {primaryCTALabel}
                 </Link>
               </div>
               <p
                 className="font-mono text-[9px] tracking-[0.3em] uppercase"
                 style={{ color: "var(--sk-text-faint)" }}
               >
-                © 2025 Sidekick · Built for founders
+                © 2026 Sidekick · Built for founders
               </p>
             </div>
           </div>

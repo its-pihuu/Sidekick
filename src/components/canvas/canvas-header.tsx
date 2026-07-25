@@ -6,7 +6,6 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { Logo } from "@/components/brand/logo";
 import { CanvasData } from "@/lib/canvas-store";
-import { ThemePicker } from "@/components/canvas/theme-picker";
 
 interface CanvasHeaderProps {
   canvas: CanvasData;
@@ -122,35 +121,8 @@ export function CanvasHeader({
           </div>
         </div>
 
-        {/* RIGHT — Completion + Theme + New */}
-        <div className="flex items-center gap-4 flex-shrink-0">
-
-          {/* Completion */}
-          <div
-            className="hidden md:block font-mono text-[11px] tracking-[0.2em] uppercase"
-            style={{ color: "var(--sk-text-muted)" }}
-          >
-            <span style={{ color: "var(--sk-accent)" }}>
-              {Math.round((completion / 100) * 11)}
-            </span>
-            <span style={{ color: "var(--sk-text-faint)" }}> / 11 </span>
-            <span className="hidden lg:inline">complete</span>
-          </div>
-
-          {/* Divider */}
-          <div
-            className="hidden md:block w-px h-5"
-            style={{ backgroundColor: "var(--sk-border)" }}
-          />
-
-          {/* Theme picker */}
-          <ThemePicker />
-
-          {/* Divider */}
-          <div
-            className="w-px h-5"
-            style={{ backgroundColor: "var(--sk-border)" }}
-          />
+        {/* RIGHT — New Project only */}
+        <div className="flex items-center flex-shrink-0">
 
           {/* New Project */}
           <motion.button

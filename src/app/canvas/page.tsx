@@ -6,31 +6,25 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CanvasHeader } from "@/components/canvas/canvas-header";
 import { ViewTabs, ViewMode } from "@/components/canvas/view-tabs";
-import { SectionCard } from "@/components/canvas/section-card";
-import { AIPopup } from "@/components/canvas/ai-popup";
 import { DocumentView } from "@/components/canvas/document-view";
-import { getSectionsInOrder } from "@/data/canvas-sections";
 import {
   CanvasData,
   loadMostRecentCanvas,
   createNewCanvas,
   saveCanvas,
-  updateSection,
   getSectionCompletion,
 } from "@/lib/canvas-store";
 
 export default function CanvasPage() {
   const [canvas, setCanvas] = useState<CanvasData | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>("edit");
+  const [viewMode, setViewMode] = useState<ViewMode>("canvas");
   const [lastSavedText, setLastSavedText] = useState<string | null>("just now");
   const [isLoading, setIsLoading] = useState(true);
-  const [aiPopupSection, setAiPopupSection] = useState<string | null>(null);
 
-  // Debounce timer ref
   const saveTimerRef = useRef<NodeJS.Timeout | null>(null);
   const lastSaveTimeRef = useRef<number>(Date.now());
 
-  // ─── LOAD CANVAS ON MOUNT ────────────────────────────────────────────────
+  // ─── LOAD CANVAS ON MOUNT ────────────────────────────────
   useEffect(() => {
     const existing = loadMostRecentCanvas();
     if (existing) {
@@ -42,7 +36,7 @@ export default function CanvasPage() {
     setIsLoading(false);
   }, []);
 
-  // ─── UPDATE "LAST SAVED" TEXT EVERY 30s ──────────────────────────────────
+  // ─── UPDATE "LAST SAVED" TEXT ────────────────────────────
   useEffect(() => {
     const interval = setInterval(() => {
       const seconds = Math.floor((Date.now() - lastSaveTimeRef.current) / 1000);
@@ -54,7 +48,7 @@ export default function CanvasPage() {
     return () => clearInterval(interval);
   }, []);
 
-  // ─── SAVE WITH DEBOUNCE (1 second after user stops typing) ───────────────
+  // ─── SAVE WITH DEBOUNCE ──────────────────────────────────
   const triggerSave = useCallback((data: CanvasData) => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     setLastSavedText(null);
@@ -66,18 +60,7 @@ export default function CanvasPage() {
     }, 1000);
   }, []);
 
-  // ─── HANDLE SECTION EDIT ─────────────────────────────────────────────────
-  const handleSectionChange = useCallback(
-    (sectionId: string, content: string) => {
-      if (!canvas) return;
-      const updated = updateSection(canvas, sectionId, content);
-      setCanvas(updated);
-      triggerSave(updated);
-    },
-    [canvas, triggerSave]
-  );
-
-  // ─── HANDLE PROJECT NAME CHANGE ──────────────────────────────────────────
+  // ─── PROJECT NAME CHANGE ─────────────────────────────────
   const handleProjectNameChange = useCallback(
     (name: string) => {
       if (!canvas) return;
@@ -88,10 +71,10 @@ export default function CanvasPage() {
     [canvas, triggerSave]
   );
 
-  // ─── NEW PROJECT ─────────────────────────────────────────────────────────
+  // ─── NEW PROJECT ─────────────────────────────────────────
   const handleNewProject = useCallback(() => {
     const confirmed = window.confirm(
-      "Start a new project? Your current canvas will be saved and you can come back to it later."
+      "Start a new project? Your current canvas will be saved."
     );
     if (!confirmed) return;
 
@@ -112,12 +95,7 @@ export default function CanvasPage() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [canvas]);
 
-  // ─── AI POPUP ─────────────────────────────────────────────────────────────
-  const handleAIClick = useCallback((sectionId: string) => {
-    setAiPopupSection(sectionId);
-  }, []);
-
-  // ─── LOADING STATE ───────────────────────────────────────────────────────
+  // ─── LOADING STATE ───────────────────────────────────────
   if (isLoading || !canvas) {
     return (
       <div
@@ -137,7 +115,6 @@ export default function CanvasPage() {
     );
   }
 
-  const sections = getSectionsInOrder();
   const completion = getSectionCompletion(canvas.sections);
 
   return (
@@ -161,71 +138,7 @@ export default function CanvasPage() {
       <main className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 pb-32">
         <AnimatePresence mode="wait">
 
-          {/* WRITE MODE */}
-          {viewMode === "edit" && (
-            <motion.div
-              key="edit"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-              className="space-y-6 sm:space-y-8 pt-4"
-            >
-              {/* Intro line */}
-              <div className="text-center mb-8 pt-2">
-                <p
-                  className="text-sm italic"
-                  style={{
-                    fontFamily: "'Cormorant Garamond', serif",
-                    color: "var(--sk-text)",
-                    opacity: 0.4,
-                    letterSpacing: "0.02em",
-                  }}
-                >
-                  Fill these in one at a time. Auto-saves as you type.
-                </p>
-              </div>
-
-              {sections.map((section, i) => (
-                <SectionCard
-                  key={section.id}
-                  section={section}
-                  content={canvas.sections[section.id] || ""}
-                  onChange={(content) => handleSectionChange(section.id, content)}
-                  onAIClick={handleAIClick}
-                  index={i}
-                />
-              ))}
-
-              {/* Bottom encouragement */}
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 1 }}
-                className="text-center pt-12 pb-4"
-              >
-                <p
-                  className="text-base italic"
-                  style={{
-                    fontFamily: "'Cormorant Garamond', serif",
-                    color: "var(--sk-text)",
-                    opacity: 0.35,
-                    letterSpacing: "0.02em",
-                  }}
-                >
-                  {completion === 100
-                    ? "You did it. Now go build it."
-                    : completion >= 50
-                    ? "Halfway there. The hard part is behind you."
-                    : completion > 0
-                    ? "Progress over perfection. Keep writing."
-                    : "Every empire started as a sketch. Start anywhere."}
-                </p>
-              </motion.div>
-            </motion.div>
-          )}
-
-          {/* CANVAS MODE — placeholder */}
+          {/* CANVAS MODE — placeholder for now, will be bento grid later */}
           {viewMode === "canvas" && (
             <motion.div
               key="canvas"
@@ -243,7 +156,7 @@ export default function CanvasPage() {
                   opacity: 0.6,
                 }}
               >
-                Coming Next
+                Visual Workspace
               </p>
               <h2
                 className="text-3xl italic mb-4"
@@ -252,44 +165,41 @@ export default function CanvasPage() {
                   color: "var(--sk-text)",
                 }}
               >
-                Canvas View
+                Your Canvas
               </h2>
               <p
-                className="text-sm max-w-xs"
+                className="text-sm max-w-md"
                 style={{
                   fontFamily: "'Inter', sans-serif",
                   color: "var(--sk-text)",
-                  opacity: 0.4,
+                  opacity: 0.5,
                   lineHeight: "1.7",
+                  marginBottom: "24px",
                 }}
               >
-                Your eleven sections as a visual bento grid.
-                See the whole picture at once.
+                Bento grid, mindmaps, and roadmaps generated from your Studio chats.
+                Coming in the next build.
+              </p>
+              <p
+                className="text-xs italic"
+                style={{
+                  fontFamily: "'Cormorant Garamond', serif",
+                  color: "var(--sk-text)",
+                  opacity: 0.35,
+                }}
+              >
+                For now, head to <span style={{ color: "var(--sk-accent)", opacity: 1 }}>Studio</span> to think, or <span style={{ color: "var(--sk-accent)", opacity: 1 }}>Document</span> to publish.
               </p>
             </motion.div>
           )}
 
-          {/* DOCUMENT MODE — real editorial view + PDF export */}
+          {/* DOCUMENT MODE — editorial doc + PDF export */}
           {viewMode === "document" && (
             <DocumentView key="document" canvas={canvas} />
           )}
-          
+
         </AnimatePresence>
       </main>
-
-      {/* AI POPUP — real Gemini-powered chat */}
-      <AnimatePresence>
-        {aiPopupSection && (
-          <AIPopup
-            sectionId={aiPopupSection}
-            sectionName={
-              sections.find((s) => s.id === aiPopupSection)?.title || "this section"
-            }
-            sectionContent={canvas.sections[aiPopupSection] || ""}
-            onClose={() => setAiPopupSection(null)}
-          />
-        )}
-      </AnimatePresence>
     </div>
   );
 }

@@ -1,10 +1,9 @@
-// components/canvas/view-tabs.tsx
-
 "use client";
 
 import { motion } from "framer-motion";
+import { useRouter } from "next/navigation";
 
-export type ViewMode = "edit" | "canvas" | "document";
+export type ViewMode = "canvas" | "document";
 
 interface ViewTabsProps {
   current: ViewMode;
@@ -12,53 +11,91 @@ interface ViewTabsProps {
 }
 
 const TABS: { id: ViewMode; label: string }[] = [
-  { id: "edit",     label: "Write" },
-  { id: "canvas",   label: "Canvas" },
+  { id: "canvas", label: "Canvas" },
   { id: "document", label: "Document" },
 ];
 
 export function ViewTabs({ current, onChange }: ViewTabsProps) {
+  const router = useRouter();
+
   return (
-    <div className="flex justify-center w-full px-4 py-10">
-      <div className="relative inline-flex items-center gap-8">
-        {TABS.map((tab) => {
-          const isActive = current === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => onChange(tab.id)}
-              className="relative pb-2 transition-colors"
+    <div className="relative z-10 flex items-center justify-center gap-10 pt-8 pb-6">
+      {/* STUDIO — first, links to /studio */}
+      <button
+        onClick={() => router.push("/studio")}
+        className="relative"
+        style={{
+          background: "transparent",
+          border: "none",
+          cursor: "pointer",
+          padding: "6px 4px",
+        }}
+      >
+        <span
+          style={{
+            fontFamily: "'Cormorant Garamond', serif",
+            fontSize: "20px",
+            fontStyle: "italic",
+            fontWeight: 400,
+            color: "var(--sk-text)",
+            opacity: 0.55,
+            transition: "opacity 0.25s",
+            letterSpacing: "0.01em",
+          }}
+          className="hover:opacity-100"
+        >
+          Studio
+        </span>
+      </button>
+
+      {/* CANVAS / DOCUMENT tabs */}
+      {TABS.map((tab) => {
+        const isActive = current === tab.id;
+        return (
+          <button
+            key={tab.id}
+            onClick={() => onChange(tab.id)}
+            className="relative"
+            style={{
+              background: "transparent",
+              border: "none",
+              cursor: "pointer",
+              padding: "6px 4px",
+            }}
+          >
+            <span
               style={{
-                color: isActive
-                  ? "var(--sk-gold)"
-                  : "var(--sk-text-muted)",
+                fontFamily: "'Cormorant Garamond', serif",
+                fontSize: "20px",
+                fontStyle: "italic",
+                fontWeight: isActive ? 700 : 400,
+                color: "var(--sk-text)",
+                opacity: isActive ? 1 : 0.45,
+                transition: "opacity 0.25s, font-weight 0.25s",
+                letterSpacing: "0.01em",
               }}
             >
-              <span
-                className="italic"
+              {tab.label}
+            </span>
+            {isActive && (
+              <motion.div
+                layoutId="active-tab-underline"
+                className="absolute -bottom-1 left-0 right-0"
                 style={{
-                  fontFamily: "'Cormorant Garamond', Georgia, serif",
-                  fontSize: "20px",
-                  fontWeight: 500,
-                  letterSpacing: "-0.005em",
+                  height: "1px",
+                  background: "var(--sk-accent)",
+                  opacity: 0.7,
                 }}
-              >
-                {tab.label}
-              </span>
-
-              {/* Active underline — hairline gold */}
-              {isActive && (
-                <motion.div
-                  layoutId="active-view-tab"
-                  className="absolute left-0 right-0 -bottom-px h-px"
-                  style={{ backgroundColor: "var(--sk-gold)" }}
-                  transition={{ type: "spring", duration: 0.5, bounce: 0.15 }}
-                />
-              )}
-            </button>
-          );
-        })}
-      </div>
+                transition={{
+                  type: "spring",
+                  stiffness: 400,
+                  damping: 30,
+                }}
+              />
+            )}
+          </button>
+        );
+      })}
     </div>
   );
 }

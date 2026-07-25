@@ -22,17 +22,18 @@
   --sk-text-dim: rgba(240, 230, 210, 0.35);
   --sk-text-faint: rgba(240, 230, 210, 0.18);
 
-  --sk-accent: #CF9D7B;
+  --sk-accent: #6E1F26
+;
   --sk-accent-bright: #E0B08D;
-  --sk-accent-soft: rgba(207, 157, 123, 0.5);
-  --sk-accent-glow: rgba(207, 157, 123, 0.12);
+  --sk-accent-soft: rgba(110, 31, 38, 0.5);
+  --sk-accent-glow: rgba(110, 31, 38, 0.12);
 
   --sk-secondary: #724B39;
   --sk-tertiary: #3A3534;
 
   --sk-border: rgba(240, 230, 210, 0.08);
   --sk-border-strong: rgba(240, 230, 210, 0.15);
-  --sk-border-accent: rgba(207, 157, 123, 0.3);
+  --sk-border-accent: rgba(110, 31, 38, 0.3);
 
   /* CARD (inverted) */
   --sk-card-bg: #F0E6D2;
@@ -117,17 +118,18 @@
   --sk-text-dim: rgba(240, 230, 210, 0.35);
   --sk-text-faint: rgba(240, 230, 210, 0.18);
 
-  --sk-accent: #CF9D7B;             /* Antique Brass — ONLY for small accents */
+  --sk-accent: #6E1F26
+;             /* Antique Brass — ONLY for small accents */
   --sk-accent-bright: #E0B08D;
-  --sk-accent-soft: rgba(207, 157, 123, 0.4);
-  --sk-accent-glow: rgba(207, 157, 123, 0.12);
+  --sk-accent-soft: rgba(110, 31, 38, 0.4);
+  --sk-accent-glow: rgba(110, 31, 38, 0.12);
 
   --sk-secondary: #724B39;
   --sk-tertiary: #3A3534;
 
   --sk-border: rgba(240, 230, 210, 0.08);
   --sk-border-strong: rgba(240, 230, 210, 0.15);
-  --sk-border-accent: rgba(207, 157, 123, 0.25);
+  --sk-border-accent: rgba(110, 31, 38, 0.25);
 
   /* CARD — cool graphite, marble bar top */
   --sk-card-bg: #1F2226;            /* Cool graphite grey (not warm) */
