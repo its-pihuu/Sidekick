@@ -1,128 +1,206 @@
-// components/onboarding/reveal-screen.tsx
-
+// src/components/onboarding/reveal-screen.tsx
 "use client";
 
-import { motion } from "framer-motion";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
+import { UserProfile, markOnboardingComplete } from "@/lib/onboarding-store";
 
 interface RevealScreenProps {
-  userName: string;
+  profile: UserProfile;
 }
 
-export function RevealScreen({ userName }: RevealScreenProps) {
+export default function RevealScreen({ profile }: RevealScreenProps) {
   const router = useRouter();
 
+  useEffect(() => {
+    // Mark onboarding as complete
+    markOnboardingComplete();
+
+    // Redirect to Studio after 3.5 seconds
+    const timer = setTimeout(() => {
+      router.push("/studio");
+    }, 3500);
+
+    return () => clearTimeout(timer);
+  }, [router]);
+
+  const stageLines: Record<UserProfile["ideaStage"], string> = {
+    vague: "Let's find the signal in the noise.",
+    clear: "You have clarity. Now let's build the plan.",
+    validating: "Smart. Let's pressure-test everything.",
+    building: "You're already moving. Let's sharpen the edge.",
+    launched: "You're live. Let's figure out what's next.",
+  };
+
+  const blockerLines: Record<UserProfile["biggestBlocker"], string> = {
+    "no-start": "We start today.",
+    "too-many-ideas": "We pick one and go all in.",
+    "no-tech": "Tech is a tool. Ideas are the weapon.",
+    "no-time": "Every hour counts. Let's make them count.",
+    "no-confidence": "Doubt is normal. Quitting is optional.",
+    "no-plan": "That's exactly what we're building.",
+  };
+
   return (
-    <div className="w-full max-w-4xl mx-auto px-6 text-center relative min-h-[70vh] flex flex-col items-center justify-center">
-
-      {/* Tiny magazine label */}
+    <div
+      style={{
+        minHeight: "100vh",
+        backgroundColor: "var(--sk-bg)",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "2rem",
+        textAlign: "center",
+      }}
+    >
+      {/* Top accent line */}
       <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.8, delay: 0.2 }}
-        className="font-mono text-[11px] tracking-[0.3em] uppercase mb-10"
-        style={{ color: "var(--sk-text-faint)" }}
-      >
-        — The Door Opens —
-      </motion.div>
-
-      {/* Hairline flourish */}
-      <motion.div
-        initial={{ scaleX: 0, opacity: 0 }}
-        animate={{ scaleX: 1, opacity: 1 }}
-        transition={{
-          duration: 1.4,
-          delay: 0.5,
-          ease: [0.65, 0, 0.35, 1],
-        }}
-        className="h-px mb-12"
+        initial={{ scaleX: 0 }}
+        animate={{ scaleX: 1 }}
+        transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
         style={{
-          width: "120px",
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          height: "2px",
           backgroundColor: "var(--sk-accent)",
-          boxShadow: "0 0 12px var(--sk-accent-glow)",
+          transformOrigin: "left",
         }}
       />
 
-      {/* MAIN HEADLINE */}
+      {/* Mono label */}
+      <motion.p
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1], delay: 0.2 }}
+        style={{
+          fontFamily: "var(--font-mono)",
+          fontSize: "0.65rem",
+          letterSpacing: "0.15em",
+          color: "var(--sk-accent)",
+          textTransform: "uppercase",
+          marginBottom: "2rem",
+        }}
+      >
+        Sidekick · Ready
+      </motion.p>
+
+      {/* Main greeting */}
       <motion.h1
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{
-          duration: 1.2,
-          delay: 1.2,
-          ease: [0.16, 1, 0.3, 1],
-        }}
-        className="italic mb-8"
+        transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1], delay: 0.4 }}
         style={{
-          fontFamily: "'Cormorant Garamond', Georgia, serif",
+          fontFamily: "var(--font-serif)",
+          fontStyle: "italic",
+          fontSize: "clamp(2.2rem, 6vw, 4rem)",
           color: "var(--sk-text)",
-          fontSize: "clamp(44px, 7vw, 88px)",
-          fontWeight: 400,
-          letterSpacing: "-0.02em",
-          lineHeight: 1.1,
+          lineHeight: 1.15,
+          marginBottom: "1.5rem",
+          maxWidth: "600px",
         }}
       >
-        Welcome home,
-        <br />
-        <span style={{ color: "var(--sk-accent)" }}>
-          {userName || "founder"}.
-        </span>
+        Welcome, {profile.name}.
       </motion.h1>
 
-      {/* SUBTITLE */}
+      {/* Divider */}
+      <motion.div
+        initial={{ opacity: 0, scaleX: 0 }}
+        animate={{ opacity: 1, scaleX: 1 }}
+        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1], delay: 0.7 }}
+        style={{
+          width: "40px",
+          height: "1px",
+          backgroundColor: "var(--sk-accent)",
+          marginBottom: "1.5rem",
+          transformOrigin: "center",
+        }}
+      />
+
+      {/* Stage line */}
       <motion.p
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{
-          duration: 1,
-          delay: 1.9,
-          ease: [0.16, 1, 0.3, 1],
-        }}
-        className="italic max-w-xl mb-14"
+        transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1], delay: 0.9 }}
         style={{
-          fontFamily: "'Cormorant Garamond', Georgia, serif",
-          color: "var(--sk-text-muted)",
-          fontSize: "clamp(20px, 2.6vw, 26px)",
-          lineHeight: 1.5,
+          fontFamily: "var(--font-sans)",
+          fontSize: "1.1rem",
+          color: "var(--sk-text)",
+          opacity: 0.7,
+          marginBottom: "0.75rem",
+          maxWidth: "480px",
         }}
       >
-        Your canvas is set.
-        <br />
-        The pen is in your hand.
+        {stageLines[profile.ideaStage]}
       </motion.p>
 
-      {/* CTA */}
-      <motion.button
+      {/* Blocker line */}
+      <motion.p
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{
-          duration: 1,
-          delay: 2.5,
-          ease: [0.16, 1, 0.3, 1],
-        }}
-        whileHover={{ scale: 1.02 }}
-        whileTap={{ scale: 0.98 }}
-        onClick={() => router.push("/canvas")}
-        className="px-12 py-4 rounded-md font-mono text-[11px] tracking-[0.25em] uppercase transition-all"
+        transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1], delay: 1.1 }}
         style={{
-          backgroundColor: "var(--sk-accent)",
-          color: "var(--sk-bg)",
-          boxShadow: "0 8px 32px var(--sk-accent-glow)",
+          fontFamily: "var(--font-serif)",
+          fontStyle: "italic",
+          fontSize: "1.25rem",
+          color: "var(--sk-accent)",
+          marginBottom: "3rem",
+          maxWidth: "480px",
         }}
       >
-        Enter your canvas →
-      </motion.button>
+        {blockerLines[profile.biggestBlocker]}
+      </motion.p>
 
-      {/* Tiny footer whisper */}
-      <motion.p
+      {/* Redirecting indicator */}
+      <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ duration: 1, delay: 3.2 }}
-        className="mt-14 font-mono text-[10px] tracking-[0.3em] uppercase"
-        style={{ color: "var(--sk-text-faint)" }}
+        transition={{ duration: 0.6, delay: 1.6 }}
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: "1rem",
+        }}
       >
-        Every empire begins with a single line.
-      </motion.p>
+        {/* Animated progress bar */}
+        <div
+          style={{
+            width: "120px",
+            height: "1px",
+            backgroundColor: "rgba(240, 230, 210, 0.1)",
+            borderRadius: "1px",
+            overflow: "hidden",
+          }}
+        >
+          <motion.div
+            initial={{ scaleX: 0 }}
+            animate={{ scaleX: 1 }}
+            transition={{ duration: 2.5, ease: "linear", delay: 1.6 }}
+            style={{
+              height: "100%",
+              backgroundColor: "var(--sk-accent)",
+              transformOrigin: "left",
+            }}
+          />
+        </div>
+
+        <p
+          style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: "0.6rem",
+            letterSpacing: "0.12em",
+            color: "var(--sk-text)",
+            opacity: 0.3,
+            textTransform: "uppercase",
+          }}
+        >
+          Opening Studio
+        </p>
+      </motion.div>
     </div>
   );
 }

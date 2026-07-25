@@ -1,19 +1,19 @@
 // src/app/onboarding/page.tsx
-
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import Link from "next/link";
 import { onboardingQuestions } from "@/data/onboarding-questions";
 import { QuestionScreen } from "@/components/onboarding/question-screen";
 import { CalibrationScreen } from "@/components/onboarding/calibration-screen";
 import { ManifestoScreen } from "@/components/onboarding/manifesto-screen";
-import { RevealScreen } from "@/components/onboarding/reveal-screen";
+import RevealScreen from "@/components/onboarding/reveal-screen";
 import {
   saveProfile,
   hasSeenManifesto,
   markManifestoSeen,
+  UserProfile,
 } from "@/lib/onboarding-store";
 
 type Phase = "welcome" | "questions" | "calibrating" | "manifesto" | "reveal";
@@ -23,20 +23,11 @@ export default function OnboardingPage() {
   const [questionIndex, setQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
 
-  // ─── APPLY DARK GREEN "ONBOARDING" PALETTE ────────────────────────────────
-  useEffect(() => {
-    const html = document.documentElement;
-    html.classList.add("zone-onboarding");
-    return () => {
-      html.classList.remove("zone-onboarding");
-    };
-  }, []);
-
   const handleAnswer = (value: string) => {
     const question = onboardingQuestions[questionIndex];
     const newAnswers = { ...answers, [question.field]: value };
     setAnswers(newAnswers);
-    saveProfile({ [question.field]: value });
+    saveProfile({ [question.field]: value } as Partial<UserProfile>);
 
     if (questionIndex < onboardingQuestions.length - 1) {
       setQuestionIndex(questionIndex + 1);
@@ -66,6 +57,17 @@ export default function OnboardingPage() {
     setPhase("reveal");
   };
 
+  // Build final profile for reveal screen
+  const finalProfile: UserProfile = {
+    name: answers.name || "founder",
+    background: (answers.background as UserProfile["background"]) || "other",
+    experience: (answers.experience as UserProfile["experience"]) || "first-time",
+    ideaStage: (answers.ideaStage as UserProfile["ideaStage"]) || "vague",
+    timeCommitment: (answers.timeCommitment as UserProfile["timeCommitment"]) || "5-10",
+    communicationStyle: (answers.communicationStyle as UserProfile["communicationStyle"]) || "honest-kind",
+    biggestBlocker: (answers.biggestBlocker as UserProfile["biggestBlocker"]) || "no-plan",
+  };
+
   return (
     <main
       className="min-h-screen flex flex-col overflow-hidden relative"
@@ -80,7 +82,7 @@ export default function OnboardingPage() {
         }}
       />
 
-      {/* Small wordmark in corner (minimal) */}
+      {/* Small wordmark in corner */}
       <div className="relative z-10 px-8 sm:px-12 py-8 flex justify-between items-center">
         <div className="flex items-end leading-none">
           <span
@@ -114,11 +116,11 @@ export default function OnboardingPage() {
         )}
       </div>
 
-      {/* Main content — centered */}
+      {/* Main content */}
       <div className="relative z-10 flex-1 w-full flex items-center justify-center px-6 pb-16">
         <AnimatePresence mode="wait">
 
-          {/* ─── WELCOME ─────────────────────────────────────────────── */}
+          {/* WELCOME */}
           {phase === "welcome" && (
             <motion.div
               key="welcome"
@@ -128,7 +130,6 @@ export default function OnboardingPage() {
               transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
               className="text-center max-w-3xl"
             >
-              {/* Tiny label */}
               <div
                 className="font-mono text-[11px] tracking-[0.3em] uppercase mb-8"
                 style={{ color: "var(--sk-text-faint)" }}
@@ -136,7 +137,6 @@ export default function OnboardingPage() {
                 — Before we begin —
               </div>
 
-              {/* Headline */}
               <h1
                 className="italic mb-8"
                 style={{
@@ -155,7 +155,6 @@ export default function OnboardingPage() {
                 </span>
               </h1>
 
-              {/* Subheading */}
               <p
                 className="italic max-w-xl mx-auto mb-14"
                 style={{
@@ -170,7 +169,6 @@ export default function OnboardingPage() {
                 We&apos;ll learn how you think.
               </p>
 
-              {/* CTA */}
               <motion.button
                 onClick={() => setPhase("questions")}
                 whileHover={{ scale: 1.02 }}
@@ -178,14 +176,14 @@ export default function OnboardingPage() {
                 className="px-12 py-4 rounded-md font-mono text-[11px] tracking-[0.25em] uppercase transition-all"
                 style={{
                   backgroundColor: "var(--sk-accent)",
-                  color: "var(--sk-bg)",
+                  color: "var(--sk-text)",
                   boxShadow: "0 8px 32px var(--sk-accent-glow)",
+                  border: "1px solid var(--sk-accent)",
                 }}
               >
                 Begin
               </motion.button>
 
-              {/* Tiny reassurance */}
               <p
                 className="mt-10 font-mono text-[10px] tracking-[0.25em] uppercase"
                 style={{ color: "var(--sk-text-faint)" }}
@@ -195,7 +193,7 @@ export default function OnboardingPage() {
             </motion.div>
           )}
 
-          {/* ─── QUESTIONS ────────────────────────────────────────────── */}
+          {/* QUESTIONS */}
           {phase === "questions" && (
             <QuestionScreen
               key={`q-${questionIndex}`}
@@ -208,7 +206,7 @@ export default function OnboardingPage() {
             />
           )}
 
-          {/* ─── CALIBRATING ─────────────────────────────────────────── */}
+          {/* CALIBRATING */}
           {phase === "calibrating" && (
             <CalibrationScreen
               key="calibrating"
@@ -216,7 +214,7 @@ export default function OnboardingPage() {
             />
           )}
 
-          {/* ─── MANIFESTO ───────────────────────────────────────────── */}
+          {/* MANIFESTO */}
           {phase === "manifesto" && (
             <ManifestoScreen
               key="manifesto"
@@ -225,11 +223,11 @@ export default function OnboardingPage() {
             />
           )}
 
-          {/* ─── REVEAL ──────────────────────────────────────────────── */}
+          {/* REVEAL */}
           {phase === "reveal" && (
             <RevealScreen
               key="reveal"
-              userName={answers.name || "founder"}
+              profile={finalProfile}
             />
           )}
 

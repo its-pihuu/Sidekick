@@ -45,29 +45,24 @@ export default function StudioSidebar({
   const [hoveredConvId, setHoveredConvId] = useState<string | null>(null);
   const [internalTick, setInternalTick] = useState(0);
 
-  // Expand the active AI automatically
   useEffect(() => {
     setExpandedAIs((prev) => ({ ...prev, [activeAIId]: true }));
   }, [activeAIId]);
 
-  // Auto-refresh conversations periodically
   useEffect(() => {
     const interval = setInterval(() => setInternalTick((t) => t + 1), 3000);
     return () => clearInterval(interval);
   }, []);
 
-  // ─── SEARCH RESULTS ────────────────────────────────────────
   const searchResults = useMemo(() => {
     if (!searchQuery.trim()) return null;
     return searchConversations(searchQuery);
   }, [searchQuery, refreshTick, internalTick]);
 
-  // ─── GROUPED AIS ───────────────────────────────────────────
   const generalistAIs = getAIsByCategory("generalist");
   const sectionAIs = getAIsByCategory("section");
   const visualAIs = getAIsByCategory("visual");
 
-  // ─── HANDLERS ──────────────────────────────────────────────
   const toggleAI = (aiId: string) => {
     setExpandedAIs((prev) => ({ ...prev, [aiId]: !prev[aiId] }));
   };
@@ -76,16 +71,12 @@ export default function StudioSidebar({
     setExpandedGroups((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const handleDeleteConv = (
-    convId: string,
-    e: React.MouseEvent
-  ) => {
+  const handleDeleteConv = (convId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     deleteConversation(convId);
     setInternalTick((t) => t + 1);
   };
 
-  // ─── RENDER AN AI + ITS CONVERSATIONS ─────────────────────
   const renderAIWithChats = (ai: AIConfig) => {
     const isActive = activeAIId === ai.id;
     const isExpanded = expandedAIs[ai.id];
@@ -94,7 +85,6 @@ export default function StudioSidebar({
 
     return (
       <div key={ai.id}>
-        {/* AI name row */}
         <button
           onClick={() => {
             onSelectAI(ai.id);
@@ -106,7 +96,7 @@ export default function StudioSidebar({
               ? "2px solid var(--sk-accent)"
               : "2px solid transparent",
             background: isActive
-              ? "rgba(207, 157, 123, 0.07)"
+              ? "rgba(207, 157, 123, 0.08)"
               : "transparent",
             transition: "all 0.15s",
           }}
@@ -146,9 +136,9 @@ export default function StudioSidebar({
             )}
             <span
               style={{
-                color: "var(--sk-accent)",
+                color: "var(--sk-accent-bright)",
                 fontSize: "9px",
-                opacity: isActive ? 1 : 0.4,
+                opacity: isActive ? 1 : 0.65,
                 flexShrink: 0,
               }}
             >
@@ -173,8 +163,8 @@ export default function StudioSidebar({
               style={{
                 fontFamily: "'JetBrains Mono', monospace",
                 fontSize: "9px",
-                color: "var(--sk-accent)",
-                opacity: 0.55,
+                color: "var(--sk-accent-bright)",
+                opacity: 0.8,
                 flexShrink: 0,
                 marginLeft: "8px",
               }}
@@ -184,7 +174,6 @@ export default function StudioSidebar({
           )}
         </button>
 
-        {/* Conversations under this AI */}
         <AnimatePresence initial={false}>
           {isExpanded && hasChats && (
             <motion.div
@@ -195,8 +184,7 @@ export default function StudioSidebar({
               style={{ overflow: "hidden" }}
             >
               {convs.map((conv) => {
-                const isConvActive =
-                  activeConversationId === conv.id;
+                const isConvActive = activeConversationId === conv.id;
                 return (
                   <div
                     key={conv.id}
@@ -206,7 +194,7 @@ export default function StudioSidebar({
                     className="relative cursor-pointer pl-11 pr-5 py-2 group"
                     style={{
                       background: isConvActive
-                        ? "rgba(207, 157, 123, 0.05)"
+                        ? "rgba(207, 157, 123, 0.06)"
                         : "transparent",
                       transition: "background 0.15s",
                     }}
@@ -234,8 +222,8 @@ export default function StudioSidebar({
                         fontFamily: "'JetBrains Mono', monospace",
                         fontSize: "8.5px",
                         letterSpacing: "0.08em",
-                        color: "var(--sk-accent)",
-                        opacity: 0.45,
+                        color: "var(--sk-accent-bright)",
+                        opacity: 0.6,
                         marginTop: "2px",
                       }}
                     >
@@ -249,9 +237,7 @@ export default function StudioSidebar({
                           animate={{ opacity: 1, scale: 1 }}
                           exit={{ opacity: 0, scale: 0.8 }}
                           transition={{ duration: 0.15 }}
-                          onClick={(e) =>
-                            handleDeleteConv(conv.id, e)
-                          }
+                          onClick={(e) => handleDeleteConv(conv.id, e)}
                           className="absolute right-3 top-1/2"
                           style={{
                             transform: "translateY(-50%)",
@@ -285,12 +271,7 @@ export default function StudioSidebar({
     );
   };
 
-  // ─── RENDER GROUP HEADER ──────────────────────────────────
-  const renderGroup = (
-    label: string,
-    key: string,
-    ais: AIConfig[]
-  ) => {
+  const renderGroup = (label: string, key: string, ais: AIConfig[]) => {
     const isExpanded = expandedGroups[key];
     return (
       <div className="mb-1">
@@ -309,8 +290,8 @@ export default function StudioSidebar({
               fontSize: "9px",
               letterSpacing: "0.14em",
               textTransform: "uppercase",
-              color: "var(--sk-accent)",
-              opacity: 0.7,
+              color: "var(--sk-accent-bright)",
+              opacity: 0.9,
             }}
           >
             {label}
@@ -355,7 +336,7 @@ export default function StudioSidebar({
         borderRight: "1px solid rgba(240, 230, 210, 0.06)",
       }}
     >
-      {/* ═══ HEADER — logo ═══ */}
+      {/* HEADER */}
       <div
         className="px-5 py-5"
         style={{ borderBottom: "1px solid rgba(240, 230, 210, 0.06)" }}
@@ -375,9 +356,9 @@ export default function StudioSidebar({
           <motion.span
             animate={{
               boxShadow: [
-                "0 0 4px 1px rgba(207, 157, 123, 0.4)",
-                "0 0 8px 2px rgba(207, 157, 123, 0.7)",
-                "0 0 4px 1px rgba(207, 157, 123, 0.4)",
+                "0 0 6px 1px rgba(207, 157, 123, 0.65)",
+                "0 0 14px 3px rgba(207, 157, 123, 1)",
+                "0 0 6px 1px rgba(207, 157, 123, 0.65)",
               ],
             }}
             transition={{
@@ -410,7 +391,7 @@ export default function StudioSidebar({
         </p>
       </div>
 
-      {/* ═══ NEW CHAT + SEARCH ═══ */}
+      {/* NEW CHAT + SEARCH */}
       <div
         className="px-5 py-4 flex flex-col gap-3"
         style={{ borderBottom: "1px solid rgba(240, 230, 210, 0.06)" }}
@@ -424,24 +405,20 @@ export default function StudioSidebar({
             fontSize: "10px",
             letterSpacing: "0.14em",
             textTransform: "uppercase",
-            color: "var(--sk-accent)",
-            background: "rgba(207, 157, 123, 0.08)",
-            border: "1px solid rgba(207, 157, 123, 0.25)",
+            color: "var(--sk-accent-bright)",
+            background: "rgba(207, 157, 123, 0.1)",
+            border: "1px solid rgba(207, 157, 123, 0.35)",
             borderRadius: "4px",
             cursor: "pointer",
             transition: "all 0.2s",
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.background =
-              "rgba(207, 157, 123, 0.15)";
-            e.currentTarget.style.borderColor =
-              "rgba(207, 157, 123, 0.5)";
+            e.currentTarget.style.background = "rgba(207, 157, 123, 0.18)";
+            e.currentTarget.style.borderColor = "rgba(207, 157, 123, 0.6)";
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.background =
-              "rgba(207, 157, 123, 0.08)";
-            e.currentTarget.style.borderColor =
-              "rgba(207, 157, 123, 0.25)";
+            e.currentTarget.style.background = "rgba(207, 157, 123, 0.1)";
+            e.currentTarget.style.borderColor = "rgba(207, 157, 123, 0.35)";
           }}
         >
           + New Chat
@@ -465,17 +442,15 @@ export default function StudioSidebar({
             transition: "border-color 0.2s",
           }}
           onFocus={(e) =>
-            (e.currentTarget.style.borderColor =
-              "rgba(207, 157, 123, 0.4)")
+            (e.currentTarget.style.borderColor = "rgba(207, 157, 123, 0.5)")
           }
           onBlur={(e) =>
-            (e.currentTarget.style.borderColor =
-              "rgba(240, 230, 210, 0.1)")
+            (e.currentTarget.style.borderColor = "rgba(240, 230, 210, 0.1)")
           }
         />
       </div>
 
-      {/* ═══ MAIN CONTENT ═══ */}
+      {/* MAIN CONTENT */}
       <div className="flex-1 overflow-y-auto py-3">
         {searchResults !== null ? (
           <div className="px-5 py-2">
@@ -485,8 +460,8 @@ export default function StudioSidebar({
                 fontSize: "9px",
                 letterSpacing: "0.14em",
                 textTransform: "uppercase",
-                color: "var(--sk-accent)",
-                opacity: 0.7,
+                color: "var(--sk-accent-bright)",
+                opacity: 0.9,
                 marginBottom: "10px",
               }}
             >
@@ -508,9 +483,7 @@ export default function StudioSidebar({
             ) : (
               <div className="flex flex-col gap-1">
                 {searchResults.map((conv) => {
-                  const ai = AI_REGISTRY.find(
-                    (a) => a.id === conv.aiId
-                  );
+                  const ai = AI_REGISTRY.find((a) => a.id === conv.aiId);
                   return (
                     <button
                       key={conv.id}
@@ -529,8 +502,7 @@ export default function StudioSidebar({
                           "rgba(240, 230, 210, 0.04)")
                       }
                       onMouseLeave={(e) =>
-                        (e.currentTarget.style.background =
-                          "transparent")
+                        (e.currentTarget.style.background = "transparent")
                       }
                     >
                       <p
@@ -551,8 +523,8 @@ export default function StudioSidebar({
                         style={{
                           fontFamily: "'JetBrains Mono', monospace",
                           fontSize: "8.5px",
-                          color: "var(--sk-accent)",
-                          opacity: 0.5,
+                          color: "var(--sk-accent-bright)",
+                          opacity: 0.7,
                           marginTop: "2px",
                         }}
                       >
@@ -567,17 +539,13 @@ export default function StudioSidebar({
         ) : (
           <>
             {renderGroup("Generalist", "generalist", generalistAIs)}
-            {renderGroup(
-              "Section Experts",
-              "section",
-              sectionAIs
-            )}
+            {renderGroup("Section Experts", "section", sectionAIs)}
             {renderGroup("Visual", "visual", visualAIs)}
           </>
         )}
       </div>
 
-      {/* ═══ FOOTER ═══ */}
+      {/* FOOTER */}
       <div
         className="px-5 py-4"
         style={{ borderTop: "1px solid rgba(240, 230, 210, 0.06)" }}
@@ -594,12 +562,8 @@ export default function StudioSidebar({
             opacity: 0.5,
             transition: "opacity 0.2s",
           }}
-          onMouseEnter={(e) =>
-            (e.currentTarget.style.opacity = "0.9")
-          }
-          onMouseLeave={(e) =>
-            (e.currentTarget.style.opacity = "0.5")
-          }
+          onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.9")}
+          onMouseLeave={(e) => (e.currentTarget.style.opacity = "0.5")}
         >
           ← Back to Canvas
         </Link>
