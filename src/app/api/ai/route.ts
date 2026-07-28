@@ -23,10 +23,9 @@ interface RequestBody {
   userProfile?: string;
 }
 
-// ═══════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════
 // BUILD FINAL SYSTEM PROMPT
-// Combines AI persona + canvas content + user profile + project name
-// ═══════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════
 function buildFinalPrompt(
   aiSystemPrompt: string,
   canvasContext: string,
@@ -47,16 +46,49 @@ ${canvasContext || "The canvas is empty. If they ask something specific about a 
 Now respond to their message. Stay in character. Reference their canvas when relevant. Keep it tight.`;
 }
 
-// ═══════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════
+// SANITIZE HISTORY FOR GEMINI
+// Rule: history must start with a user message.
+// If it starts with a model (assistant) message, drop leading models.
+// Also drop any trailing model messages so the last item is always a user turn.
+// ═══════════════════════════════════════════
+function sanitizeHistoryForGemini(
+  history: Message[]
+): { role: "user" | "model"; parts: { text: string }[] }[] {
+  if (!history || history.length === 0) return [];
+
+  // Map to Gemini format
+  const mapped = history.map((msg) => ({
+    role: (msg.role === "user" ? "user" : "model") as "user" | "model",
+    parts: [{ text: msg.content }],
+  }));
+
+  // Drop leading model messages (e.g., the auto-greeting)
+  let startIdx = 0;
+  while (startIdx < mapped.length && mapped[startIdx].role === "model") {
+    startIdx++;
+  }
+
+  const trimmed = mapped.slice(startIdx);
+
+  // Drop trailing model messages (shouldn't happen but defensive)
+  while (trimmed.length > 0 && trimmed[trimmed.length - 1].role === "model") {
+    trimmed.pop();
+  }
+
+  return trimmed;
+}
+
+// ═══════════════════════════════════════════
 // POST HANDLER
-// ═══════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════
 export async function POST(req: NextRequest) {
   try {
     const body: RequestBody = await req.json();
     const { aiId, message, history, canvasContext, projectName, userProfile } =
       body;
 
-    // ─── VALIDATE ─────────────────────────────────────────────
+    // ── VALIDATE ──────────────────────────────────────────
     if (!aiId?.trim()) {
       return NextResponse.json(
         { reply: "No AI selected. Something's off." },
@@ -71,7 +103,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ─── FIND THE AI IN REGISTRY ─────────────────────────────
+    // ── FIND THE AI IN REGISTRY ──────────────────────────
     const ai = getAIById(aiId);
     if (!ai) {
       console.error("AI not found in registry:", aiId);
@@ -81,7 +113,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ─── CHECK API KEY ────────────────────────────────────────
+    // ── CHECK API KEY ────────────────────────────────────
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
       console.error("GEMINI_API_KEY missing");
@@ -91,7 +123,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ─── BUILD THE FINAL PROMPT ───────────────────────────────
+    // ── BUILD THE FINAL PROMPT ───────────────────────────
     const finalSystemPrompt = buildFinalPrompt(
       ai.systemPrompt,
       canvasContext || "",
@@ -99,23 +131,20 @@ export async function POST(req: NextRequest) {
       userProfile || ""
     );
 
-    // ─── CALL GEMINI ──────────────────────────────────────────
+    // ── CALL GEMINI ──────────────────────────────────────
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({
       model: GEMINI_MODEL,
       systemInstruction: finalSystemPrompt,
     });
 
-    // Build multi-turn history for Gemini
-    const geminiHistory = (history || []).map((msg) => ({
-      role: msg.role === "user" ? "user" : "model",
-      parts: [{ text: msg.content }],
-    }));
+    // Sanitize history so it always starts with a user message
+    const geminiHistory = sanitizeHistoryForGemini(history || []);
 
     const chat = model.startChat({
       history: geminiHistory,
       generationConfig: {
-        temperature: 0.85, // creative but not chaotic
+        temperature: 0.85,
         maxOutputTokens: 900,
         topP: 0.95,
       },
@@ -130,7 +159,6 @@ export async function POST(req: NextRequest) {
       err instanceof Error ? err.message : "Unknown error";
     console.error("Studio AI API error:", errorMessage);
 
-    // Graceful fallback with wit
     let userMessage = "Something broke on my end. Try again in a sec.";
     if (errorMessage.includes("quota") || errorMessage.includes("limit")) {
       userMessage =
