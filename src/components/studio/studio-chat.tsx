@@ -25,6 +25,8 @@ interface StudioChatProps {
   onConversationSaved?: () => void;
 }
 
+type ChatMode = "quick" | "deep";
+
 // ── Browser SpeechRecognition types ──────────────────────────
 interface ISpeechRecognition extends EventTarget {
   continuous: boolean;
@@ -63,6 +65,7 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
     const [listening, setListening] = useState(false);
     const [voiceSupported, setVoiceSupported] = useState(false);
     const [liveTranscript, setLiveTranscript] = useState("");
+    const [mode, setMode] = useState<ChatMode>("quick");
 
     const bottomRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -104,11 +107,8 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
         let interimTranscript = "";
         for (let i = 0; i < event.results.length; i++) {
           const t = event.results[i][0].transcript;
-          if (event.results[i].isFinal) {
-            finalTranscript += t;
-          } else {
-            interimTranscript += t;
-          }
+          if (event.results[i].isFinal) finalTranscript += t;
+          else interimTranscript += t;
         }
         const base = voiceBaseRef.current;
         const spoken = (finalTranscript + " " + interimTranscript).trim();
@@ -128,12 +128,9 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
     const toggleVoice = () => {
       if (!recognitionRef.current) return;
       if (listening) {
-        // Stop → commit transcript into the input
         recognitionRef.current.stop();
         setListening(false);
-        if (liveTranscript.trim()) {
-          setInput(liveTranscript.trim());
-        }
+        if (liveTranscript.trim()) setInput(liveTranscript.trim());
         setLiveTranscript("");
         voiceBaseRef.current = "";
         setTimeout(() => inputRef.current?.focus(), 100);
@@ -194,7 +191,7 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
         setGreetingLoading(true);
         try {
           const canvas = loadMostRecentCanvas();
-          const greetingPrompt = `[SYSTEM: This is the user's FIRST TIME opening Sidekick after onboarding. Do NOT respond to any question — instead, deliver a warm, personalized, and slightly cheeky welcome greeting. Use their name, reference their stage and blocker, match their communication style. Keep it under 4 sentences. End with an open invitation to start the conversation. Do not use emojis. Do not use headers or lists. Just flowing text like a sidekick meeting them at the door.]`;
+          const greetingPrompt = `[SYSTEM: This is the user's FIRST TIME opening Sidekick after onboarding. Do NOT respond to any question — instead, deliver a warm, personalized, slightly cheeky welcome greeting. Use their name, reference their stage and blocker, match their communication style. Keep it under 4 sentences. End with an open invitation to start the conversation. Do not use emojis. Do not use headers or lists. Just flowing text like a sidekick meeting them at the door.]`;
 
           const response = await fetch("/api/ai", {
             method: "POST",
@@ -206,6 +203,7 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
               canvasContext: buildCanvasContext(),
               projectName: canvas?.projectName || "Untitled Project",
               userProfile: buildProfileContext(profile),
+              mode: "quick",
             }),
           });
 
@@ -290,13 +288,14 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
             canvasContext: buildCanvasContext(),
             projectName: canvas?.projectName || "Untitled Project",
             userProfile: buildProfileContext(getProfile()),
+            mode,
           }),
         });
 
         const data = await response.json();
         const aiMessage: StudioMessage = {
           role: "assistant",
-          content: data.reply || "Something went wrong. Try again.",
+          content: data.reply || "something went wrong. try again.",
           timestamp: Date.now(),
         };
 
@@ -321,7 +320,7 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
           ...prev,
           {
             role: "assistant",
-            content: "Something went wrong. Check your connection and try again.",
+            content: "something broke. check your connection and try again.",
             timestamp: Date.now(),
           },
         ]);
@@ -377,6 +376,7 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
         className="flex flex-col flex-1 h-full relative"
         style={{ background: "var(--sk-bg)" }}
       >
+        {/* HEADER */}
         <header
           className="px-12 py-6 flex items-center justify-between"
           style={{ borderBottom: "1px solid rgba(240, 230, 210, 0.06)" }}
@@ -410,8 +410,32 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
               <span style={{ color: "var(--sk-accent)", marginLeft: "3px" }}>·</span>
             </h2>
           </div>
+
+          {/* MODE INDICATOR */}
+          {mode === "deep" && (
+            <motion.div
+              initial={{ opacity: 0, x: 10 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0 }}
+              style={{
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: "9px",
+                letterSpacing: "0.2em",
+                textTransform: "uppercase",
+                color: "var(--sk-accent)",
+                opacity: 0.85,
+                padding: "6px 12px",
+                border: "1px solid rgba(207, 157, 123, 0.35)",
+                borderRadius: "3px",
+                background: "rgba(207, 157, 123, 0.08)",
+              }}
+            >
+              Deep Mode
+            </motion.div>
+          )}
         </header>
 
+        {/* MESSAGES */}
         <div className="flex-1 overflow-y-auto px-12 py-10">
           {messages.length === 0 && !greetingLoading ? (
             <motion.div
@@ -703,7 +727,7 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
                       marginBottom: "10px",
                     }}
                   >
-                    {ai.name} ·
+                    {mode === "deep" ? `${ai.name} is going deep` : `${ai.name} ·`}
                   </p>
                   <div className="flex gap-1.5 items-center">
                     {[0, 1, 2].map((i) => (
@@ -711,7 +735,7 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
                         key={i}
                         animate={{ opacity: [0.2, 1, 0.2] }}
                         transition={{
-                          duration: 1.2,
+                          duration: mode === "deep" ? 1.8 : 1.2,
                           repeat: Infinity,
                           delay: i * 0.2,
                           ease: "easeInOut",
@@ -740,14 +764,14 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
           style={{ borderTop: "1px solid rgba(240, 230, 210, 0.06)" }}
         >
           <div
-            className="flex gap-3 items-end max-w-3xl mx-auto"
+            className="flex gap-2 items-end max-w-3xl mx-auto"
             style={{
               background: "var(--sk-bg-card)",
               border: listening
                 ? "1px solid rgba(207, 157, 123, 0.4)"
                 : "1px solid rgba(240, 230, 210, 0.1)",
               borderRadius: "6px",
-              padding: "14px 14px 14px 18px",
+              padding: "14px 12px 14px 18px",
               transition: "border-color 0.2s",
               minHeight: "64px",
             }}
@@ -793,6 +817,67 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
                 />
               )}
             </AnimatePresence>
+
+            {/* PAPERCLIP (file upload placeholder) */}
+            <button
+              onClick={() => flashToast("File upload — coming soon")}
+              title="Attach file — coming soon"
+              style={{
+                flexShrink: 0,
+                width: "36px",
+                height: "36px",
+                borderRadius: "5px",
+                border: "1px solid rgba(240, 230, 210, 0.12)",
+                background: "transparent",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                transition: "all 0.2s",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = "rgba(240, 230, 210, 0.25)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = "rgba(240, 230, 210, 0.12)";
+              }}
+            >
+              <PaperclipIcon />
+            </button>
+
+            {/* MODE TOGGLE (Quick / Deep) */}
+            <button
+              onClick={() => setMode(mode === "quick" ? "deep" : "quick")}
+              title={mode === "quick" ? "Switch to Deep Mode" : "Switch to Quick Mode"}
+              style={{
+                flexShrink: 0,
+                height: "36px",
+                padding: "0 10px",
+                borderRadius: "5px",
+                border:
+                  mode === "deep"
+                    ? "1px solid var(--sk-accent)"
+                    : "1px solid rgba(240, 230, 210, 0.12)",
+                background:
+                  mode === "deep"
+                    ? "rgba(207, 157, 123, 0.15)"
+                    : "transparent",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                transition: "all 0.2s",
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: "9px",
+                letterSpacing: "0.14em",
+                textTransform: "uppercase",
+                color: mode === "deep" ? "var(--sk-accent)" : "var(--sk-text)",
+                opacity: mode === "deep" ? 1 : 0.6,
+              }}
+            >
+              {mode === "deep" ? <DeepIcon /> : <QuickIcon />}
+              {mode === "deep" ? "Deep" : "Quick"}
+            </button>
 
             {/* MIC BUTTON */}
             {voiceSupported && (
@@ -883,7 +968,7 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
               textAlign: "center",
             }}
           >
-            Enter to send · Shift+Enter for new line{voiceSupported ? " · Mic to speak" : ""}
+            Enter to send · Shift+Enter for new line{voiceSupported ? " · Mic to speak" : ""} · Toggle Deep for detailed answers
           </p>
         </div>
 
@@ -1012,6 +1097,31 @@ function MicIcon({ color, opacity }: { color: string; opacity: number }) {
       <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
       <line x1="12" y1="19" x2="12" y2="23" />
       <line x1="8" y1="23" x2="16" y2="23" />
+    </svg>
+  );
+}
+
+function PaperclipIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--sk-text)", opacity: 0.5 }}>
+      <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+    </svg>
+  );
+}
+
+function QuickIcon() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+    </svg>
+  );
+}
+
+function DeepIcon() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="8" />
+      <line x1="21" y1="21" x2="16.65" y2="16.65" />
     </svg>
   );
 }
