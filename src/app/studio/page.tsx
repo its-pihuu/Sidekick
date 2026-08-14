@@ -38,7 +38,7 @@ function StudioContent() {
     }
 
     if (sectionParam) {
-      const ai = AI_REGISTRY.find((a) => a.sectionId === sectionParam);
+      const ai = AI_REGISTRY.find((a) => a.id === sectionParam);
       if (ai) {
         setActiveAIId(ai.id);
       }

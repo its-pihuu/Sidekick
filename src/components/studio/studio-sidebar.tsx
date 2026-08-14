@@ -6,7 +6,7 @@ import Link from "next/link";
 import {
   AI_REGISTRY,
   getAIsByCategory,
-  AIConfig,
+  AIPersonality,
 } from "@/data/ai-registry";
 import {
   getConversationsByAI,
@@ -77,7 +77,7 @@ export default function StudioSidebar({
     setInternalTick((t) => t + 1);
   };
 
-  const renderAIWithChats = (ai: AIConfig) => {
+  const renderAIWithChats = (ai: AIPersonality) => {
     const isActive = activeAIId === ai.id;
     const isExpanded = expandedAIs[ai.id];
     const convs = getConversationsByAI(ai.id);
@@ -271,7 +271,7 @@ export default function StudioSidebar({
     );
   };
 
-  const renderGroup = (label: string, key: string, ais: AIConfig[]) => {
+  const renderGroup = (label: string, key: string, ais: AIPersonality[]) => {
     const isExpanded = expandedGroups[key];
     return (
       <div className="mb-1">

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, useImperativeHandle, forwardRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { AIConfig } from "@/data/ai-registry";
+import { AIPersonality } from "@/data/ai-registry";
 import {
   StudioMessage,
   StudioConversation,
@@ -21,7 +21,7 @@ export interface StudioChatHandle {
 }
 
 interface StudioChatProps {
-  ai: AIConfig;
+  ai: AIPersonality;
   onConversationSaved?: () => void;
 }
 
@@ -393,7 +393,7 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
                 marginBottom: "6px",
               }}
             >
-              {ai.tagline}
+              {ai.description}
             </p>
             <h2
               style={{

@@ -338,7 +338,7 @@ export function DocumentView({ canvas }: DocumentViewProps) {
                 opacity: 0.8,
               }}
             >
-              {profile.name && <p>By {profile.name}</p>}
+              {profile?.name && <p>By {profile.name}</p>}
               <p>{today}</p>
             </div>
           </div>
