@@ -1,8 +1,8 @@
 // src/app/api/ai/route.ts
 // Unified API for all 13 Studio AIs
-// Supports Quick + Deep modes + STREAMING
+// Streaming + Quick/Deep modes + Vision (images)
 
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenerativeAI, Part } from "@google/generative-ai";
 import { NextRequest } from "next/server";
 import { getAIById } from "@/data/ai-registry";
 
@@ -14,6 +14,11 @@ interface Message {
   timestamp: number;
 }
 
+interface ImageAttachment {
+  mimeType: string;
+  data: string; // base64 without data URL prefix
+}
+
 interface RequestBody {
   aiId: string;
   message: string;
@@ -22,6 +27,7 @@ interface RequestBody {
   projectName: string;
   userProfile?: string;
   mode?: "quick" | "deep";
+  images?: ImageAttachment[];
 }
 
 // ═══════════════════════════════════════════
@@ -32,7 +38,8 @@ function buildFinalPrompt(
   canvasContext: string,
   projectName: string,
   userProfile: string,
-  mode: "quick" | "deep"
+  mode: "quick" | "deep",
+  hasImages: boolean
 ): string {
   const modeInstructions =
     mode === "deep"
@@ -45,13 +52,7 @@ Rules for DEEP mode:
 - Structure: Use short headers (##) to organize sections if the answer has 3+ angles.
 - Depth: Include real examples, benchmarks, frameworks, counterexamples, edge cases.
 - Voice: STAY IN CHARACTER. The Architect voice throughout. Never turn into a Wikipedia article.
-- Structure example (adapt as needed):
-  1. Cold observation or reframe (1 para)
-  2. The framework or angles (headers + explanation)
-  3. Real examples or benchmarks
-  4. Common traps to avoid
-  5. What to ACTUALLY do (specific next steps)
-  6. End with a dare or a mirror
+- End with a dare or a mirror.
 - Still no emojis. Still no "great question!" Still no "as an AI."
 `
       : `
@@ -59,9 +60,19 @@ Rules for DEEP mode:
 Punchy, tight, 2-4 short paragraphs max. No headers. Fast reality check energy. Every sentence earns its spot. End with a dare or a quiet question.
 `;
 
+  const imageInstructions = hasImages
+    ? `
+# IMAGE CONTEXT
+The founder has attached one or more images to this message. Study them like Bateman studies a business card.
+Reference what you see with clinical precision. Name specifics — the mediocrity, the craft, the fragility, the leverage.
+Do not narrate the image. Diagnose it.
+`
+    : "";
+
   return `${aiSystemPrompt}
 
 ${modeInstructions}
+${imageInstructions}
 
 # CURRENT PROJECT
 Project Name: "${projectName}"
@@ -103,7 +114,7 @@ function sanitizeHistoryForGemini(
 }
 
 // ═══════════════════════════════════════════
-// POST HANDLER — STREAMING
+// POST HANDLER — STREAMING + VISION
 // ═══════════════════════════════════════════
 export async function POST(req: NextRequest) {
   try {
@@ -116,6 +127,7 @@ export async function POST(req: NextRequest) {
       projectName,
       userProfile,
       mode = "quick",
+      images = [],
     } = body;
 
     if (!aiId?.trim()) {
@@ -125,7 +137,8 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!message?.trim()) {
+    // Allow empty message ONLY if images are attached
+    if (!message?.trim() && images.length === 0) {
       return new Response(
         JSON.stringify({ error: "Empty message." }),
         { status: 400, headers: { "Content-Type": "application/json" } }
@@ -153,7 +166,8 @@ export async function POST(req: NextRequest) {
       canvasContext || "",
       projectName || "Untitled Project",
       userProfile || "",
-      mode
+      mode,
+      images.length > 0
     );
 
     const genAI = new GoogleGenerativeAI(apiKey);
@@ -174,8 +188,25 @@ export async function POST(req: NextRequest) {
       generationConfig,
     });
 
+    // ── BUILD MESSAGE PARTS (text + images) ────────────────────
+    const messageParts: (string | Part)[] = [];
+
+    // Add images first (Gemini reads them first)
+    for (const img of images) {
+      messageParts.push({
+        inlineData: {
+          mimeType: img.mimeType,
+          data: img.data,
+        },
+      });
+    }
+
+    // Add text — use fallback if empty (image-only message)
+    const textPart = message?.trim() || "Analyze this.";
+    messageParts.push(textPart);
+
     // ── STREAM ────────────────────────────────────────────────
-    const streamResult = await chat.sendMessageStream(message);
+    const streamResult = await chat.sendMessageStream(messageParts);
 
     const stream = new ReadableStream({
       async start(controller) {
@@ -214,6 +245,8 @@ export async function POST(req: NextRequest) {
       userMessage = "API configuration issue.";
     } else if (errorMessage.includes("SAFETY")) {
       userMessage = "Blocked for safety. Try rephrasing.";
+    } else if (errorMessage.includes("image") || errorMessage.includes("payload")) {
+      userMessage = "Image too large or invalid. Try a smaller image.";
     }
 
     return new Response(userMessage, {

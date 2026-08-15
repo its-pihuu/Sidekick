@@ -27,6 +27,13 @@ interface StudioChatProps {
 
 type ChatMode = "quick" | "deep";
 
+interface AttachedImage {
+  id: string;
+  mimeType: string;
+  base64: string;      // pure base64 (no data URL prefix) — sent to API
+  previewUrl: string;  // data URL for <img> preview
+}
+
 // ── Browser SpeechRecognition types ──────────────────────────
 interface ISpeechRecognition extends EventTarget {
   continuous: boolean;
@@ -52,8 +59,47 @@ interface WindowWithSpeech extends Window {
   webkitSpeechRecognition?: new () => ISpeechRecognition;
 }
 
-const TYPEWRITER_DELAY = 12;
+const TYPEWRITER_DELAY = 18;
 const THINK_DELAY = 600;
+const MAX_IMAGES = 3;
+const MAX_IMAGE_DIMENSION = 1600; // compress if larger
+
+// ═══════════════════════════════════════════
+// IMAGE COMPRESSION UTILITY
+// ═══════════════════════════════════════════
+async function compressImage(file: File): Promise<{ mimeType: string; base64: string; previewUrl: string }> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new window.Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > MAX_IMAGE_DIMENSION || height > MAX_IMAGE_DIMENSION) {
+          if (width > height) {
+            height = Math.round((height * MAX_IMAGE_DIMENSION) / width);
+            width = MAX_IMAGE_DIMENSION;
+          } else {
+            width = Math.round((width * MAX_IMAGE_DIMENSION) / height);
+            height = MAX_IMAGE_DIMENSION;
+          }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return reject("No canvas context");
+        ctx.drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+        const base64 = dataUrl.split(",")[1];
+        resolve({ mimeType: "image/jpeg", base64, previewUrl: dataUrl });
+      };
+      img.onerror = () => reject("Image load failed");
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = () => reject("File read failed");
+    reader.readAsDataURL(file);
+  });
+}
 
 const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
   ({ ai, onConversationSaved }, ref) => {
@@ -70,9 +116,12 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
     const [voiceSupported, setVoiceSupported] = useState(false);
     const [liveTranscript, setLiveTranscript] = useState("");
     const [mode, setMode] = useState<ChatMode>("quick");
+    const [attachedImages, setAttachedImages] = useState<AttachedImage[]>([]);
+    const [compressing, setCompressing] = useState(false);
 
     const bottomRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
     const greetingAttempted = useRef<string | null>(null);
     const recognitionRef = useRef<ISpeechRecognition | null>(null);
     const voiceBaseRef = useRef<string>("");
@@ -91,6 +140,7 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
         activeConvIdRef.current = null;
         setMessages([]);
         setInput("");
+        setAttachedImages([]);
         greetingAttempted.current = null;
         setTimeout(() => inputRef.current?.focus(), 100);
       },
@@ -151,6 +201,56 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
       }
     };
 
+    // ── IMAGE HANDLERS ────────────────────────────────────────
+    const handleFilePick = () => {
+      if (attachedImages.length >= MAX_IMAGES) {
+        flashToast(`Max ${MAX_IMAGES} images`);
+        return;
+      }
+      fileInputRef.current?.click();
+    };
+
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = e.target.files;
+      if (!files || files.length === 0) return;
+
+      setCompressing(true);
+      try {
+        const remaining = MAX_IMAGES - attachedImages.length;
+        const toProcess = Array.from(files).slice(0, remaining);
+        const processed: AttachedImage[] = [];
+
+        for (const file of toProcess) {
+          if (!file.type.startsWith("image/")) {
+            flashToast("Only images allowed");
+            continue;
+          }
+          if (file.size > 15 * 1024 * 1024) {
+            flashToast("Image too large (max 15MB)");
+            continue;
+          }
+          const compressed = await compressImage(file);
+          processed.push({
+            id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+            mimeType: compressed.mimeType,
+            base64: compressed.base64,
+            previewUrl: compressed.previewUrl,
+          });
+        }
+
+        setAttachedImages((prev) => [...prev, ...processed]);
+      } catch {
+        flashToast("Image processing failed");
+      } finally {
+        setCompressing(false);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+      }
+    };
+
+    const removeImage = (id: string) => {
+      setAttachedImages((prev) => prev.filter((img) => img.id !== id));
+    };
+
     // ── BUILD CANVAS CONTEXT ──────────────────────────────────
     const buildCanvasContext = useCallback((): string => {
       const canvas = loadMostRecentCanvas();
@@ -168,6 +268,7 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
       setInput("");
       setEditingIndex(null);
       setLiveTranscript("");
+      setAttachedImages([]);
       if (listening) {
         recognitionRef.current?.stop();
         setListening(false);
@@ -267,14 +368,19 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
       }
     };
 
-    // ── SEND MESSAGE (STREAMING + TYPEWRITER) ─────────────────
+    // ── SEND MESSAGE (STREAMING + IMAGES + TYPEWRITER) ────────
     const sendMessage = async (text: string, replaceFromIndex?: number) => {
-      if (!text.trim() || loading || streaming) return;
+      const hasImages = attachedImages.length > 0;
+      if ((!text.trim() && !hasImages) || loading || streaming) return;
+
+      const imagePreviews = attachedImages.map((img) => img.previewUrl);
 
       const userMessage: StudioMessage = {
         role: "user",
-        content: text.trim(),
+        content: text.trim() || "(image only)",
         timestamp: Date.now(),
+        // @ts-expect-error — extending type inline; images optional field
+        images: imagePreviews,
       };
 
       const baseMessages =
@@ -286,6 +392,13 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
       setMessages(newMessages);
       setInput("");
       setLoading(true);
+
+      // Snapshot images for API call, then clear preview
+      const imagesForApi = attachedImages.map((img) => ({
+        mimeType: img.mimeType,
+        data: img.base64,
+      }));
+      setAttachedImages([]);
 
       try {
         const canvas = loadMostRecentCanvas();
@@ -300,6 +413,7 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
             projectName: canvas?.projectName || "Untitled Project",
             userProfile: buildProfileContext(getProfile()),
             mode,
+            images: imagesForApi,
           }),
         });
 
@@ -312,7 +426,6 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
           return;
         }
 
-        // Minimum think time before stream starts
         await new Promise((resolve) => setTimeout(resolve, THINK_DELAY));
 
         setLoading(false);
@@ -322,7 +435,6 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
         const decoder = new TextDecoder();
         let fullText = "";
 
-        // Add empty AI message placeholder
         const aiPlaceholder: StudioMessage = {
           role: "assistant",
           content: "",
@@ -350,7 +462,6 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
           }
         }
 
-        // Save conversation after stream completes
         const finalMessages: StudioMessage[] = [
           ...newMessages,
           { role: "assistant", content: fullText, timestamp: Date.now() },
@@ -360,7 +471,7 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
         const updatedConv: StudioConversation = {
           id: convId,
           aiId: ai.id,
-          title: generateTitle(text.trim()),
+          title: generateTitle(text.trim() || "Image analysis"),
           messages: finalMessages,
           createdAt: Date.now(),
           updatedAt: Date.now(),
@@ -424,15 +535,26 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
     };
 
     const isResponding = loading || streaming;
+    const hasImages = attachedImages.length > 0;
     const canSend = listening
-      ? liveTranscript.trim().length > 0 && !isResponding
-      : input.trim().length > 0 && !isResponding;
+      ? (liveTranscript.trim().length > 0 || hasImages) && !isResponding
+      : (input.trim().length > 0 || hasImages) && !isResponding;
 
     return (
       <main
         className="flex flex-col flex-1 h-full relative"
         style={{ background: "var(--sk-bg)" }}
       >
+        {/* HIDDEN FILE INPUT */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          onChange={handleFileChange}
+          style={{ display: "none" }}
+        />
+
         {/* HEADER */}
         <header
           className="px-12 py-6 flex items-center justify-between"
@@ -605,187 +727,213 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
             </motion.div>
           ) : (
             <div className="flex flex-col gap-8 max-w-3xl mx-auto">
-              {messages.map((msg, i) => (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-                  className="group relative"
-                >
-                  {msg.role === "user" ? (
-                    <div className="flex justify-end">
-                      {editingIndex === i ? (
-                        <div
-                          style={{
-                            width: "100%",
-                            maxWidth: "80%",
-                            padding: "12px 20px",
-                            background: "rgba(207, 157, 123, 0.09)",
-                            border: "1px solid rgba(207, 157, 123, 0.35)",
-                            borderRadius: "5px",
-                          }}
-                        >
-                          <textarea
-                            value={editValue}
-                            onChange={(e) => setEditValue(e.target.value)}
-                            autoFocus
-                            rows={2}
-                            style={{
-                              width: "100%",
-                              background: "transparent",
-                              border: "none",
-                              outline: "none",
-                              resize: "none",
-                              fontFamily: "'Inter', sans-serif",
-                              fontSize: "14px",
-                              lineHeight: 1.65,
-                              color: "var(--sk-text)",
-                            }}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" && !e.shiftKey) {
-                                e.preventDefault();
-                                saveEdit(i);
-                              }
-                              if (e.key === "Escape") cancelEdit();
-                            }}
-                          />
-                          <div className="flex gap-2 mt-2 justify-end">
-                            <button
-                              onClick={cancelEdit}
-                              style={{
-                                fontFamily: "'JetBrains Mono', monospace",
-                                fontSize: "9px",
-                                letterSpacing: "0.12em",
-                                textTransform: "uppercase",
-                                color: "var(--sk-text)",
-                                opacity: 0.5,
-                                background: "transparent",
-                                border: "none",
-                                cursor: "pointer",
-                                padding: "4px 8px",
-                              }}
-                            >
-                              Cancel
-                            </button>
-                            <button
-                              onClick={() => saveEdit(i)}
-                              disabled={!editValue.trim()}
-                              style={{
-                                fontFamily: "'JetBrains Mono', monospace",
-                                fontSize: "9px",
-                                letterSpacing: "0.12em",
-                                textTransform: "uppercase",
-                                color: "var(--sk-accent)",
-                                background: "rgba(207, 157, 123, 0.15)",
-                                border: "1px solid rgba(207, 157, 123, 0.4)",
-                                borderRadius: "3px",
-                                cursor: editValue.trim() ? "pointer" : "default",
-                                opacity: editValue.trim() ? 1 : 0.3,
-                                padding: "4px 10px",
-                              }}
-                            >
-                              Regenerate
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex flex-col items-end gap-1.5 max-w-[80%]">
+              {messages.map((msg, i) => {
+                // @ts-expect-error — images is optional extended field
+                const msgImages: string[] | undefined = msg.images;
+                return (
+                  <motion.div
+                    key={i}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                    className="group relative"
+                  >
+                    {msg.role === "user" ? (
+                      <div className="flex justify-end">
+                        {editingIndex === i ? (
                           <div
                             style={{
+                              width: "100%",
+                              maxWidth: "80%",
                               padding: "12px 20px",
                               background: "rgba(207, 157, 123, 0.09)",
-                              border: "1px solid rgba(207, 157, 123, 0.18)",
+                              border: "1px solid rgba(207, 157, 123, 0.35)",
                               borderRadius: "5px",
                             }}
                           >
-                            <p
+                            <textarea
+                              value={editValue}
+                              onChange={(e) => setEditValue(e.target.value)}
+                              autoFocus
+                              rows={2}
                               style={{
+                                width: "100%",
+                                background: "transparent",
+                                border: "none",
+                                outline: "none",
+                                resize: "none",
                                 fontFamily: "'Inter', sans-serif",
                                 fontSize: "14px",
                                 lineHeight: 1.65,
                                 color: "var(--sk-text)",
-                                opacity: 0.95,
-                                whiteSpace: "pre-wrap",
-                                margin: 0,
                               }}
-                            >
-                              {msg.content}
-                            </p>
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" && !e.shiftKey) {
+                                  e.preventDefault();
+                                  saveEdit(i);
+                                }
+                                if (e.key === "Escape") cancelEdit();
+                              }}
+                            />
+                            <div className="flex gap-2 mt-2 justify-end">
+                              <button
+                                onClick={cancelEdit}
+                                style={{
+                                  fontFamily: "'JetBrains Mono', monospace",
+                                  fontSize: "9px",
+                                  letterSpacing: "0.12em",
+                                  textTransform: "uppercase",
+                                  color: "var(--sk-text)",
+                                  opacity: 0.5,
+                                  background: "transparent",
+                                  border: "none",
+                                  cursor: "pointer",
+                                  padding: "4px 8px",
+                                }}
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                onClick={() => saveEdit(i)}
+                                disabled={!editValue.trim()}
+                                style={{
+                                  fontFamily: "'JetBrains Mono', monospace",
+                                  fontSize: "9px",
+                                  letterSpacing: "0.12em",
+                                  textTransform: "uppercase",
+                                  color: "var(--sk-accent)",
+                                  background: "rgba(207, 157, 123, 0.15)",
+                                  border: "1px solid rgba(207, 157, 123, 0.4)",
+                                  borderRadius: "3px",
+                                  cursor: editValue.trim() ? "pointer" : "default",
+                                  opacity: editValue.trim() ? 1 : 0.3,
+                                  padding: "4px 10px",
+                                }}
+                              >
+                                Regenerate
+                              </button>
+                            </div>
                           </div>
+                        ) : (
+                          <div className="flex flex-col items-end gap-1.5 max-w-[80%]">
+                            {/* Image thumbnails */}
+                            {msgImages && msgImages.length > 0 && (
+                              <div className="flex gap-2 flex-wrap justify-end">
+                                {msgImages.map((src, idx) => (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img
+                                    key={idx}
+                                    src={src}
+                                    alt={`attachment ${idx + 1}`}
+                                    style={{
+                                      maxWidth: "180px",
+                                      maxHeight: "180px",
+                                      borderRadius: "5px",
+                                      border: "1px solid rgba(207, 157, 123, 0.25)",
+                                      objectFit: "cover",
+                                    }}
+                                  />
+                                ))}
+                              </div>
+                            )}
+                            {msg.content && msg.content !== "(image only)" && (
+                              <div
+                                style={{
+                                  padding: "12px 20px",
+                                  background: "rgba(207, 157, 123, 0.09)",
+                                  border: "1px solid rgba(207, 157, 123, 0.18)",
+                                  borderRadius: "5px",
+                                }}
+                              >
+                                <p
+                                  style={{
+                                    fontFamily: "'Inter', sans-serif",
+                                    fontSize: "14px",
+                                    lineHeight: 1.65,
+                                    color: "var(--sk-text)",
+                                    opacity: 0.95,
+                                    whiteSpace: "pre-wrap",
+                                    margin: 0,
+                                  }}
+                                >
+                                  {msg.content}
+                                </p>
+                              </div>
+                            )}
+                            <div
+                              className="flex gap-1 opacity-0 group-hover:opacity-100"
+                              style={{ transition: "opacity 0.2s" }}
+                            >
+                              <IconButton label="Copy" onClick={() => handleCopy(msg.content)}>
+                                <CopyIcon />
+                              </IconButton>
+                              <IconButton label="Edit" onClick={() => startEdit(i, msg.content)}>
+                                <EditIcon />
+                              </IconButton>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div>
+                        <p
+                          style={{
+                            fontFamily: "'JetBrains Mono', monospace",
+                            fontSize: "9px",
+                            letterSpacing: "0.14em",
+                            textTransform: "uppercase",
+                            color: "var(--sk-accent)",
+                            opacity: 0.85,
+                            marginBottom: "10px",
+                          }}
+                        >
+                          {ai.name} ·
+                        </p>
+                        <div
+                          style={{
+                            fontFamily: "'Inter', sans-serif",
+                            fontSize: "15px",
+                            lineHeight: 1.8,
+                            color: "var(--sk-text)",
+                            opacity: 0.9,
+                            whiteSpace: "pre-wrap",
+                          }}
+                        >
+                          {msg.content}
+                          {streaming && i === messages.length - 1 && (
+                            <motion.span
+                              animate={{ opacity: [1, 0] }}
+                              transition={{ duration: 0.6, repeat: Infinity, ease: "easeInOut" }}
+                              style={{
+                                display: "inline-block",
+                                width: "2px",
+                                height: "15px",
+                                background: "var(--sk-accent)",
+                                marginLeft: "2px",
+                                verticalAlign: "middle",
+                                borderRadius: "1px",
+                              }}
+                            />
+                          )}
+                        </div>
+                        {!(streaming && i === messages.length - 1) && (
                           <div
-                            className="flex gap-1 opacity-0 group-hover:opacity-100"
+                            className="flex gap-1 mt-3 opacity-0 group-hover:opacity-100"
                             style={{ transition: "opacity 0.2s" }}
                           >
                             <IconButton label="Copy" onClick={() => handleCopy(msg.content)}>
                               <CopyIcon />
                             </IconButton>
-                            <IconButton label="Edit" onClick={() => startEdit(i, msg.content)}>
-                              <EditIcon />
+                            <IconButton label="Save to Document" onClick={() => handleSaveToDocument(msg.content)}>
+                              <SaveIcon />
                             </IconButton>
                           </div>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div>
-                      <p
-                        style={{
-                          fontFamily: "'JetBrains Mono', monospace",
-                          fontSize: "9px",
-                          letterSpacing: "0.14em",
-                          textTransform: "uppercase",
-                          color: "var(--sk-accent)",
-                          opacity: 0.85,
-                          marginBottom: "10px",
-                        }}
-                      >
-                        {ai.name} ·
-                      </p>
-                      <div
-                        style={{
-                          fontFamily: "'Inter', sans-serif",
-                          fontSize: "15px",
-                          lineHeight: 1.8,
-                          color: "var(--sk-text)",
-                          opacity: 0.9,
-                          whiteSpace: "pre-wrap",
-                        }}
-                      >
-                        {msg.content}
-                        {streaming && i === messages.length - 1 && (
-                          <motion.span
-                            animate={{ opacity: [1, 0] }}
-                            transition={{ duration: 0.6, repeat: Infinity, ease: "easeInOut" }}
-                            style={{
-                              display: "inline-block",
-                              width: "2px",
-                              height: "15px",
-                              background: "var(--sk-accent)",
-                              marginLeft: "2px",
-                              verticalAlign: "middle",
-                              borderRadius: "1px",
-                            }}
-                          />
                         )}
                       </div>
-                      {!(streaming && i === messages.length - 1) && (
-                        <div
-                          className="flex gap-1 mt-3 opacity-0 group-hover:opacity-100"
-                          style={{ transition: "opacity 0.2s" }}
-                        >
-                          <IconButton label="Copy" onClick={() => handleCopy(msg.content)}>
-                            <CopyIcon />
-                          </IconButton>
-                          <IconButton label="Save to Document" onClick={() => handleSaveToDocument(msg.content)}>
-                            <SaveIcon />
-                          </IconButton>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </motion.div>
-              ))}
+                    )}
+                  </motion.div>
+                );
+              })}
 
               {loading && !streaming && (
                 <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}>
@@ -836,6 +984,88 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
           className="px-12 py-6"
           style={{ borderTop: "1px solid rgba(240, 230, 210, 0.06)" }}
         >
+          {/* IMAGE PREVIEW STRIP */}
+          <AnimatePresence>
+            {(attachedImages.length > 0 || compressing) && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+                className="max-w-3xl mx-auto mb-3 overflow-hidden"
+              >
+                <div className="flex gap-2 flex-wrap">
+                  {attachedImages.map((img) => (
+                    <div
+                      key={img.id}
+                      style={{
+                        position: "relative",
+                        width: "72px",
+                        height: "72px",
+                        borderRadius: "5px",
+                        border: "1px solid rgba(207, 157, 123, 0.3)",
+                        overflow: "hidden",
+                        background: "var(--sk-bg-card)",
+                      }}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={img.previewUrl}
+                        alt="preview"
+                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                      />
+                      <button
+                        onClick={() => removeImage(img.id)}
+                        style={{
+                          position: "absolute",
+                          top: "3px",
+                          right: "3px",
+                          width: "18px",
+                          height: "18px",
+                          borderRadius: "50%",
+                          background: "rgba(12, 21, 25, 0.9)",
+                          border: "1px solid rgba(207, 157, 123, 0.4)",
+                          color: "var(--sk-text)",
+                          fontSize: "11px",
+                          lineHeight: 1,
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          padding: 0,
+                        }}
+                        title="Remove"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                  {compressing && (
+                    <div
+                      style={{
+                        width: "72px",
+                        height: "72px",
+                        borderRadius: "5px",
+                        border: "1px dashed rgba(207, 157, 123, 0.35)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontFamily: "'JetBrains Mono', monospace",
+                        fontSize: "8px",
+                        letterSpacing: "0.15em",
+                        color: "var(--sk-accent)",
+                        opacity: 0.7,
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      Processing
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           <div
             className="flex gap-2 items-end max-w-3xl mx-auto"
             style={{
@@ -863,7 +1093,7 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder={`Ask ${ai.name}...`}
+                  placeholder={hasImages ? "Describe or ask about the image..." : `Ask ${ai.name}...`}
                   rows={1}
                   style={{
                     flex: 1,
@@ -887,32 +1117,49 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
               )}
             </AnimatePresence>
 
+            {/* PAPERCLIP — real file picker now */}
             <button
-              onClick={() => flashToast("File upload — coming soon")}
-              title="Attach file — coming soon"
+              onClick={handleFilePick}
+              disabled={compressing}
+              title={
+                attachedImages.length >= MAX_IMAGES
+                  ? `Max ${MAX_IMAGES} images`
+                  : "Attach image"
+              }
               style={{
                 flexShrink: 0,
                 width: "36px",
                 height: "36px",
                 borderRadius: "5px",
-                border: "1px solid rgba(240, 230, 210, 0.12)",
-                background: "transparent",
-                cursor: "pointer",
+                border:
+                  attachedImages.length > 0
+                    ? "1px solid rgba(207, 157, 123, 0.4)"
+                    : "1px solid rgba(240, 230, 210, 0.12)",
+                background:
+                  attachedImages.length > 0
+                    ? "rgba(207, 157, 123, 0.1)"
+                    : "transparent",
+                cursor: compressing ? "wait" : "pointer",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 transition: "all 0.2s",
+                opacity: compressing ? 0.5 : 1,
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = "rgba(240, 230, 210, 0.25)";
+                if (!compressing) e.currentTarget.style.borderColor = "rgba(240, 230, 210, 0.25)";
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = "rgba(240, 230, 210, 0.12)";
+                e.currentTarget.style.borderColor =
+                  attachedImages.length > 0
+                    ? "rgba(207, 157, 123, 0.4)"
+                    : "rgba(240, 230, 210, 0.12)";
               }}
             >
               <PaperclipIcon />
             </button>
 
+            {/* MODE TOGGLE */}
             <button
               onClick={() => setMode(mode === "quick" ? "deep" : "quick")}
               title={mode === "quick" ? "Switch to Deep Mode" : "Switch to Quick Mode"}
@@ -1019,7 +1266,7 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
               textAlign: "center",
             }}
           >
-            Enter to send · Shift+Enter for new line{voiceSupported ? " · Mic to speak" : ""} · Toggle Deep for detailed answers
+            Enter to send · Shift+Enter for new line · Attach images{voiceSupported ? " · Mic to speak" : ""} · Toggle Deep for detailed answers
           </p>
         </div>
 
@@ -1153,7 +1400,7 @@ function MicIcon({ color, opacity }: { color: string; opacity: number }) {
 
 function PaperclipIcon() {
   return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--sk-text)", opacity: 0.5 }}>
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--sk-text)", opacity: 0.6 }}>
       <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
     </svg>
   );
