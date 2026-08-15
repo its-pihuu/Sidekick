@@ -57,7 +57,7 @@ const THINK_DELAY = 600;
 
 const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
   ({ ai, onConversationSaved }, ref) => {
-    const [activeId, setActiveId] = useState<string | null>(null);
+    const [, setActiveId] = useState<string | null>(null);
     const [messages, setMessages] = useState<StudioMessage[]>([]);
     const [input, setInput] = useState("");
     const [loading, setLoading] = useState(false);
