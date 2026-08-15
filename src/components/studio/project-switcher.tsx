@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  getActiveProject,
   listProjects,
   createProject,
   renameProject,
@@ -28,7 +27,6 @@ export default function ProjectSwitcher({ onProjectChange }: ProjectSwitcherProp
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // ── LOAD ──────────────────────────────────────────────────
   const refresh = useCallback(() => {
     const current = ensureActiveProject();
     setActive(current);
@@ -39,7 +37,6 @@ export default function ProjectSwitcher({ onProjectChange }: ProjectSwitcherProp
     refresh();
   }, [refresh]);
 
-  // ── LISTEN FOR EXTERNAL PROJECT CHANGES ───────────────────
   useEffect(() => {
     const handler = () => refresh();
     window.addEventListener("sidekick:project-changed", handler);
@@ -52,7 +49,6 @@ export default function ProjectSwitcher({ onProjectChange }: ProjectSwitcherProp
     };
   }, [refresh]);
 
-  // ── CLOSE ON OUTSIDE CLICK ────────────────────────────────
   useEffect(() => {
     if (!open) return;
     const handler = (e: MouseEvent) => {
@@ -66,14 +62,12 @@ export default function ProjectSwitcher({ onProjectChange }: ProjectSwitcherProp
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
 
-  // ── AUTOFOCUS INPUT ───────────────────────────────────────
   useEffect(() => {
     if (mode === "create" || mode === "rename") {
       setTimeout(() => inputRef.current?.focus(), 50);
     }
   }, [mode]);
 
-  // ── HANDLERS ──────────────────────────────────────────────
   const handleSwitch = (id: string) => {
     if (id === active?.id) {
       setOpen(false);
@@ -126,11 +120,22 @@ export default function ProjectSwitcher({ onProjectChange }: ProjectSwitcherProp
     setMode("confirm-delete");
   };
 
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      if (mode === "create") handleCreate();
+      else handleRename();
+    }
+    if (e.key === "Escape") {
+      setMode("list");
+      setInputValue("");
+    }
+  };
+
   if (!active) return null;
 
   return (
     <div ref={containerRef} style={{ position: "relative", width: "100%" }}>
-      {/* TRIGGER PILL */}
+      {/* TRIGGER */}
       <button
         onClick={() => setOpen(!open)}
         style={{
@@ -190,7 +195,6 @@ export default function ProjectSwitcher({ onProjectChange }: ProjectSwitcherProp
         <ChevronIcon open={open} />
       </button>
 
-      {/* DROPDOWN */}
       <AnimatePresence>
         {open && (
           <motion.div
@@ -211,7 +215,6 @@ export default function ProjectSwitcher({ onProjectChange }: ProjectSwitcherProp
               overflow: "hidden",
             }}
           >
-            {/* ─── LIST MODE ─── */}
             {mode === "list" && (
               <>
                 <div style={{ maxHeight: "280px", overflowY: "auto" }}>
@@ -237,10 +240,7 @@ export default function ProjectSwitcher({ onProjectChange }: ProjectSwitcherProp
                           if (!isActive) e.currentTarget.style.background = "transparent";
                         }}
                       >
-                        <div
-                          onClick={() => handleSwitch(p.id)}
-                          style={{ flex: 1, overflow: "hidden" }}
-                        >
+                        <div onClick={() => handleSwitch(p.id)} style={{ flex: 1, overflow: "hidden" }}>
                           <p
                             style={{
                               fontFamily: "'Inter', sans-serif",
@@ -311,7 +311,6 @@ export default function ProjectSwitcher({ onProjectChange }: ProjectSwitcherProp
                   })}
                 </div>
 
-                {/* ACTIONS */}
                 <div
                   style={{
                     borderTop: "1px solid rgba(240, 230, 210, 0.06)",
@@ -341,7 +340,6 @@ export default function ProjectSwitcher({ onProjectChange }: ProjectSwitcherProp
               </>
             )}
 
-            {/* ─── CREATE / RENAME MODE ─── */}
             {(mode === "create" || mode === "rename") && (
               <div style={{ padding: "14px" }}>
                 <p
@@ -361,15 +359,7 @@ export default function ProjectSwitcher({ onProjectChange }: ProjectSwitcherProp
                   ref={inputRef}
                   value={inputValue}
                   onChange={(e) => setInputValue(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      mode === "create" ? handleCreate() : handleRename();
-                    }
-                    if (e.key === "Escape") {
-                      setMode("list");
-                      setInputValue("");
-                    }
-                  }}
+                  onKeyDown={handleInputKeyDown}
                   placeholder="Project name..."
                   style={{
                     width: "100%",
@@ -409,7 +399,6 @@ export default function ProjectSwitcher({ onProjectChange }: ProjectSwitcherProp
               </div>
             )}
 
-            {/* ─── CONFIRM DELETE ─── */}
             {mode === "confirm-delete" && (
               <div style={{ padding: "14px" }}>
                 <p
@@ -468,9 +457,6 @@ export default function ProjectSwitcher({ onProjectChange }: ProjectSwitcherProp
   );
 }
 
-// ═══════════════════════════════════════════
-// STYLES
-// ═══════════════════════════════════════════
 const actionButtonStyle: React.CSSProperties = {
   display: "flex",
   alignItems: "center",
@@ -514,9 +500,6 @@ const secondaryBtn: React.CSSProperties = {
   padding: "6px 8px",
 };
 
-// ═══════════════════════════════════════════
-// ICONS
-// ═══════════════════════════════════════════
 function ChevronIcon({ open }: { open: boolean }) {
   return (
     <motion.svg
