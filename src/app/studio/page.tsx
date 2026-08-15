@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { AI_REGISTRY, getAIById } from "@/data/ai-registry";
 import { StudioConversation } from "@/lib/studio-history";
+import { ensureActiveProject } from "@/lib/projects-store";
 import StudioSidebar from "@/components/studio/studio-sidebar";
 import StudioChat, {
   StudioChatHandle,
@@ -19,8 +20,9 @@ function StudioContent() {
   const [refreshTick, setRefreshTick] = useState(0);
   const chatRef = useRef<StudioChatHandle>(null);
 
-  // ─── MARK READY ────────────────────────────────────────────
+  // ─── ENSURE ACTIVE PROJECT + MARK READY ────────────────────
   useEffect(() => {
+    ensureActiveProject();
     setThemeLoaded(true);
   }, []);
 
@@ -82,6 +84,20 @@ function StudioContent() {
     setRefreshTick((t) => t + 1);
   };
 
+  // ─── HANDLE PROJECT CHANGE ─────────────────────────────────
+  const handleProjectChange = () => {
+    // Reset chat to empty state — different project, different conversations
+    setActiveConvId(null);
+    setActiveAIId("sidekick-global");
+    chatRef.current?.startNew();
+    setRefreshTick((t) => t + 1);
+    // Clean URL params
+    const url = new URL(window.location.href);
+    url.searchParams.delete("ai");
+    url.searchParams.delete("section");
+    router.replace(url.pathname + url.search);
+  };
+
   const activeAI = getAIById(activeAIId);
 
   if (!themeLoaded || !activeAI) {
@@ -114,6 +130,7 @@ function StudioContent() {
         onSelectAI={handleSelectAI}
         onSelectConversation={handleSelectConversation}
         onNewChat={handleNewChat}
+        onProjectChange={handleProjectChange}
         refreshTick={refreshTick}
       />
       <StudioChat

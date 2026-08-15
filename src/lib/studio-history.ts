@@ -1,6 +1,5 @@
 // src/lib/studio-history.ts
-// Unified chat history for all 13 Studio AIs
-// Each AI has its own conversation list, all stored in localStorage
+// Unified chat history for all 13 Studio AIs — scoped by project
 
 "use client";
 
@@ -12,7 +11,8 @@ export interface StudioMessage {
 
 export interface StudioConversation {
   id: string;
-  aiId: string; // links to AI_REGISTRY (e.g. "sidekick-global", "expert-problem")
+  aiId: string;
+  projectId: string;
   title: string;
   messages: StudioMessage[];
   createdAt: number;
@@ -21,12 +21,57 @@ export interface StudioConversation {
 
 const STORAGE_KEY = "sidekick_studio_history";
 const ENABLED_KEY = "sidekick_studio_history_enabled";
+const MIGRATION_FLAG_KEY = "sidekick_studio_history_migrated_v1";
 
-// ═══════════════════════════════════════════════════════════════
-// CORE — get all conversations across all AIs
-// ═══════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════
+// GET ACTIVE PROJECT ID (local lookup — avoids circular import)
+// ═══════════════════════════════════════════
+function getActiveProjectIdLocal(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return localStorage.getItem("sidekick_active_project_id");
+  } catch {
+    return null;
+  }
+}
+
+// ═══════════════════════════════════════════
+// MIGRATION — assign projectId to old conversations (one time)
+// ═══════════════════════════════════════════
+function migrateIfNeeded(): void {
+  if (typeof window === "undefined") return;
+  try {
+    const migrated = localStorage.getItem(MIGRATION_FLAG_KEY);
+    if (migrated) return;
+
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) {
+      localStorage.setItem(MIGRATION_FLAG_KEY, "1");
+      return;
+    }
+
+    const all = JSON.parse(raw) as Partial<StudioConversation>[];
+    const activeId = getActiveProjectIdLocal();
+    if (!activeId) return; // wait until active project exists
+
+    const migratedList = all.map((c) => ({
+      ...c,
+      projectId: c.projectId || activeId,
+    }));
+
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(migratedList));
+    localStorage.setItem(MIGRATION_FLAG_KEY, "1");
+  } catch (err) {
+    console.error("History migration failed:", err);
+  }
+}
+
+// ═══════════════════════════════════════════
+// GET ALL — every conversation across every project & AI
+// ═══════════════════════════════════════════
 export function getAllConversations(): StudioConversation[] {
   if (typeof window === "undefined") return [];
+  migrateIfNeeded();
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
@@ -37,37 +82,65 @@ export function getAllConversations(): StudioConversation[] {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════
-// FILTERED — get conversations for a specific AI
-// ═══════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════
+// GET FOR ACTIVE PROJECT (used by sidebar)
+// ═══════════════════════════════════════════
+export function getConversationsForActiveProject(): StudioConversation[] {
+  const activeId = getActiveProjectIdLocal();
+  if (!activeId) return [];
+  return getAllConversations().filter((c) => c.projectId === activeId);
+}
+
+// ═══════════════════════════════════════════
+// FILTERED — get conversations for a specific AI in ACTIVE project
+// ═══════════════════════════════════════════
 export function getConversationsByAI(aiId: string): StudioConversation[] {
+  const activeId = getActiveProjectIdLocal();
+  if (!activeId) return [];
+  return getAllConversations().filter(
+    (c) => c.aiId === aiId && c.projectId === activeId
+  );
+}
+
+// ═══════════════════════════════════════════
+// FILTERED — get conversations for a specific AI in ANY project
+// ═══════════════════════════════════════════
+export function getConversationsByAIAllProjects(aiId: string): StudioConversation[] {
   return getAllConversations().filter((c) => c.aiId === aiId);
 }
 
-// ═══════════════════════════════════════════════════════════════
-// SEARCH — search across all conversations
-// ═══════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════
+// SEARCH — within active project only
+// ═══════════════════════════════════════════
 export function searchConversations(query: string): StudioConversation[] {
   const q = query.trim().toLowerCase();
   if (!q) return [];
-  return getAllConversations().filter((conv) => {
+  const activeId = getActiveProjectIdLocal();
+  const scope = activeId
+    ? getAllConversations().filter((c) => c.projectId === activeId)
+    : getAllConversations();
+  return scope.filter((conv) => {
     if (conv.title.toLowerCase().includes(q)) return true;
     return conv.messages.some((m) => m.content.toLowerCase().includes(q));
   });
 }
 
-// ═══════════════════════════════════════════════════════════════
-// SAVE — create or update a conversation
-// ═══════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════
+// SAVE — auto-attaches active project ID if missing
+// ═══════════════════════════════════════════
 export function saveConversation(conv: StudioConversation): void {
   if (typeof window === "undefined") return;
   try {
+    const withProject: StudioConversation = {
+      ...conv,
+      projectId: conv.projectId || getActiveProjectIdLocal() || "orphan",
+    };
     const all = getAllConversations();
-    const idx = all.findIndex((c) => c.id === conv.id);
+    const idx = all.findIndex((c) => c.id === withProject.id);
     if (idx >= 0) {
-      all[idx] = conv;
+      all[idx] = withProject;
     } else {
-      all.push(conv);
+      all.push(withProject);
     }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
   } catch (err) {
@@ -75,9 +148,9 @@ export function saveConversation(conv: StudioConversation): void {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════
-// DELETE — remove a specific conversation
-// ═══════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════
+// DELETE — one conversation
+// ═══════════════════════════════════════════
 export function deleteConversation(id: string): void {
   if (typeof window === "undefined") return;
   try {
@@ -89,9 +162,9 @@ export function deleteConversation(id: string): void {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════
-// DELETE ALL — clear all history (nuclear option)
-// ═══════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════
+// DELETE ALL — nuclear
+// ═══════════════════════════════════════════
 export function clearAllHistory(): void {
   if (typeof window === "undefined") return;
   try {
@@ -101,23 +174,26 @@ export function clearAllHistory(): void {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════
-// DELETE BY AI — clear all conversations for one specific AI
-// ═══════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════
+// DELETE BY AI — within active project
+// ═══════════════════════════════════════════
 export function clearHistoryForAI(aiId: string): void {
   if (typeof window === "undefined") return;
   try {
+    const activeId = getActiveProjectIdLocal();
     const all = getAllConversations();
-    const filtered = all.filter((c) => c.aiId !== aiId);
+    const filtered = all.filter(
+      (c) => !(c.aiId === aiId && (!activeId || c.projectId === activeId))
+    );
     localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
   } catch (err) {
     console.error("Failed to clear AI history:", err);
   }
 }
 
-// ═══════════════════════════════════════════════════════════════
-// ENABLE / DISABLE — history toggle (for future Settings page)
-// ═══════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════
+// ENABLED TOGGLE
+// ═══════════════════════════════════════════
 export function isHistoryEnabled(): boolean {
   if (typeof window === "undefined") return true;
   try {
@@ -137,23 +213,20 @@ export function setHistoryEnabled(enabled: boolean): void {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════
 // UTILITIES
-// ═══════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════
 
-// Generate a unique conversation ID
 export function generateConversationId(): string {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
 
-// Auto-generate a title from the first user message
 export function generateTitle(firstMessage: string): string {
   const cleaned = firstMessage.trim().replace(/\s+/g, " ");
   if (cleaned.length <= 50) return cleaned;
   return cleaned.slice(0, 47) + "...";
 }
 
-// Format a timestamp as "just now", "5m", "2h", "3d", or a date
 export function formatTimestamp(ts: number): string {
   const diff = Date.now() - ts;
   const mins = Math.floor(diff / 60000);
@@ -172,12 +245,10 @@ export function formatTimestamp(ts: number): string {
   });
 }
 
-// Get total conversation count (for badges / stats)
 export function getConversationCount(): number {
   return getAllConversations().length;
 }
 
-// Get count per AI (for showing "12 chats" next to each AI in sidebar)
 export function getConversationCountByAI(aiId: string): number {
   return getConversationsByAI(aiId).length;
 }

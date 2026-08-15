@@ -15,6 +15,7 @@ import {
   deleteConversation,
   formatTimestamp,
 } from "@/lib/studio-history";
+import ProjectSwitcher from "./project-switcher";
 
 interface StudioSidebarProps {
   activeAIId: string;
@@ -22,6 +23,7 @@ interface StudioSidebarProps {
   onSelectAI: (aiId: string) => void;
   onSelectConversation: (conv: StudioConversation) => void;
   onNewChat: () => void;
+  onProjectChange?: () => void;
   refreshTick: number;
 }
 
@@ -31,6 +33,7 @@ export default function StudioSidebar({
   onSelectAI,
   onSelectConversation,
   onNewChat,
+  onProjectChange,
   refreshTick,
 }: StudioSidebarProps) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -54,9 +57,23 @@ export default function StudioSidebar({
     return () => clearInterval(interval);
   }, []);
 
+  // Listen for project changes to force a re-render
+  useEffect(() => {
+    const handler = () => setInternalTick((t) => t + 1);
+    window.addEventListener("sidekick:project-changed", handler);
+    window.addEventListener("sidekick:project-renamed", handler);
+    window.addEventListener("sidekick:project-deleted", handler);
+    return () => {
+      window.removeEventListener("sidekick:project-changed", handler);
+      window.removeEventListener("sidekick:project-renamed", handler);
+      window.removeEventListener("sidekick:project-deleted", handler);
+    };
+  }, []);
+
   const searchResults = useMemo(() => {
     if (!searchQuery.trim()) return null;
     return searchConversations(searchQuery);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchQuery, refreshTick, internalTick]);
 
   const generalistAIs = getAIsByCategory("generalist");
@@ -389,6 +406,14 @@ export default function StudioSidebar({
         >
           Studio
         </p>
+      </div>
+
+      {/* PROJECT SWITCHER */}
+      <div
+        className="px-5 py-4"
+        style={{ borderBottom: "1px solid rgba(240, 230, 210, 0.06)" }}
+      >
+        <ProjectSwitcher onProjectChange={onProjectChange} />
       </div>
 
       {/* NEW CHAT + SEARCH */}

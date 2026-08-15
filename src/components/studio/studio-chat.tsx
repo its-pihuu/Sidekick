@@ -471,6 +471,7 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
         const updatedConv: StudioConversation = {
           id: convId,
           aiId: ai.id,
+          projectId: localStorage.getItem("sidekick_active_project_id") || "",
           title: generateTitle(text.trim() || "Image analysis"),
           messages: finalMessages,
           createdAt: Date.now(),
