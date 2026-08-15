@@ -52,12 +52,16 @@ interface WindowWithSpeech extends Window {
   webkitSpeechRecognition?: new () => ISpeechRecognition;
 }
 
+const TYPEWRITER_DELAY = 12;
+const THINK_DELAY = 600;
+
 const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
   ({ ai, onConversationSaved }, ref) => {
     const [activeId, setActiveId] = useState<string | null>(null);
     const [messages, setMessages] = useState<StudioMessage[]>([]);
     const [input, setInput] = useState("");
     const [loading, setLoading] = useState(false);
+    const [streaming, setStreaming] = useState(false);
     const [greetingLoading, setGreetingLoading] = useState(false);
     const [editingIndex, setEditingIndex] = useState<number | null>(null);
     const [editValue, setEditValue] = useState("");
@@ -72,16 +76,19 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
     const greetingAttempted = useRef<string | null>(null);
     const recognitionRef = useRef<ISpeechRecognition | null>(null);
     const voiceBaseRef = useRef<string>("");
+    const activeConvIdRef = useRef<string | null>(null);
 
     useImperativeHandle(ref, () => ({
       loadConversation: (conv: StudioConversation) => {
         setActiveId(conv.id);
+        activeConvIdRef.current = conv.id;
         setMessages(conv.messages);
         greetingAttempted.current = ai.id + "-loaded";
         setTimeout(() => inputRef.current?.focus(), 100);
       },
       startNew: () => {
         setActiveId(null);
+        activeConvIdRef.current = null;
         setMessages([]);
         setInput("");
         greetingAttempted.current = null;
@@ -120,9 +127,7 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
       recognition.onend = () => setListening(false);
       recognitionRef.current = recognition;
 
-      return () => {
-        recognition.stop();
-      };
+      return () => { recognition.stop(); };
     }, []);
 
     const toggleVoice = () => {
@@ -150,19 +155,15 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
     const buildCanvasContext = useCallback((): string => {
       const canvas = loadMostRecentCanvas();
       if (!canvas) return "No canvas loaded.";
-      const filled = Object.entries(canvas.sections).filter(([, v]) =>
-        v?.trim()
-      );
-      if (filled.length === 0)
-        return "The founder hasn't filled any canvas sections yet.";
-      return filled
-        .map(([sectionId, content]) => `## ${sectionId}\n${content}`)
-        .join("\n\n");
+      const filled = Object.entries(canvas.sections).filter(([, v]) => v?.trim());
+      if (filled.length === 0) return "The founder hasn't filled any canvas sections yet.";
+      return filled.map(([sectionId, content]) => `## ${sectionId}\n${content}`).join("\n\n");
     }, []);
 
     // ── RESET ON AI CHANGE ────────────────────────────────────
     useEffect(() => {
       setActiveId(null);
+      activeConvIdRef.current = null;
       setMessages([]);
       setInput("");
       setEditingIndex(null);
@@ -191,7 +192,7 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
         setGreetingLoading(true);
         try {
           const canvas = loadMostRecentCanvas();
-          const greetingPrompt = `[SYSTEM: This is the user's FIRST TIME opening Sidekick after onboarding. Do NOT respond to any question — instead, deliver a warm, personalized, slightly cheeky welcome greeting. Use their name, reference their stage and blocker, match their communication style. Keep it under 4 sentences. End with an open invitation to start the conversation. Do not use emojis. Do not use headers or lists. Just flowing text like a sidekick meeting them at the door.]`;
+          const greetingPrompt = `[SYSTEM: This is the user's FIRST TIME opening Sidekick after onboarding. Deliver a cold, precise welcome. Use their name. Reference their stage and blocker. Keep it under 4 sentences. End with one quiet question that opens the conversation. No emojis. No headers. No lists. Flowing prose only.]`;
 
           const response = await fetch("/api/ai", {
             method: "POST",
@@ -207,9 +208,23 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
             }),
           });
 
-          const data = await response.json();
-          if (data.reply) {
-            setMessages([{ role: "assistant", content: data.reply, timestamp: Date.now() }]);
+          if (!response.ok || !response.body) return;
+
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder();
+          let fullText = "";
+
+          setMessages([{ role: "assistant", content: "", timestamp: Date.now() }]);
+
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const chunk = decoder.decode(value, { stream: true });
+            for (const char of chunk) {
+              fullText += char;
+              setMessages([{ role: "assistant", content: fullText, timestamp: Date.now() }]);
+              await new Promise((resolve) => setTimeout(resolve, TYPEWRITER_DELAY));
+            }
           }
         } catch {
           // silent fail
@@ -244,11 +259,7 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
       try {
         const key = "sidekick_document_saves";
         const existing = JSON.parse(localStorage.getItem(key) || "[]");
-        existing.push({
-          content: text,
-          aiName: ai.name,
-          savedAt: Date.now(),
-        });
+        existing.push({ content: text, aiName: ai.name, savedAt: Date.now() });
         localStorage.setItem(key, JSON.stringify(existing));
         flashToast("Saved to Document");
       } catch {
@@ -256,9 +267,9 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
       }
     };
 
-    // ── SEND MESSAGE ──────────────────────────────────────────
+    // ── SEND MESSAGE (STREAMING + TYPEWRITER) ─────────────────
     const sendMessage = async (text: string, replaceFromIndex?: number) => {
-      if (!text.trim() || loading) return;
+      if (!text.trim() || loading || streaming) return;
 
       const userMessage: StudioMessage = {
         role: "user",
@@ -292,17 +303,60 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
           }),
         });
 
-        const data = await response.json();
-        const aiMessage: StudioMessage = {
+        if (!response.ok || !response.body) {
+          setMessages((prev) => [
+            ...prev,
+            { role: "assistant", content: "Something broke. Try again.", timestamp: Date.now() },
+          ]);
+          setLoading(false);
+          return;
+        }
+
+        // Minimum think time before stream starts
+        await new Promise((resolve) => setTimeout(resolve, THINK_DELAY));
+
+        setLoading(false);
+        setStreaming(true);
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let fullText = "";
+
+        // Add empty AI message placeholder
+        const aiPlaceholder: StudioMessage = {
           role: "assistant",
-          content: data.reply || "something went wrong. try again.",
+          content: "",
           timestamp: Date.now(),
         };
+        setMessages([...newMessages, aiPlaceholder]);
 
-        const finalMessages = [...newMessages, aiMessage];
-        setMessages(finalMessages);
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const chunk = decoder.decode(value, { stream: true });
 
-        const convId = activeId || generateConversationId();
+          for (const char of chunk) {
+            fullText += char;
+            setMessages((prev) => {
+              const updated = [...prev];
+              updated[updated.length - 1] = {
+                role: "assistant",
+                content: fullText,
+                timestamp: Date.now(),
+              };
+              return updated;
+            });
+            await new Promise((resolve) => setTimeout(resolve, TYPEWRITER_DELAY));
+          }
+        }
+
+        // Save conversation after stream completes
+        const finalMessages: StudioMessage[] = [
+          ...newMessages,
+          { role: "assistant", content: fullText, timestamp: Date.now() },
+        ];
+
+        const convId = activeConvIdRef.current || generateConversationId();
         const updatedConv: StudioConversation = {
           id: convId,
           aiId: ai.id,
@@ -314,18 +368,20 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
 
         saveConversation(updatedConv);
         setActiveId(convId);
+        activeConvIdRef.current = convId;
         onConversationSaved?.();
       } catch {
         setMessages((prev) => [
           ...prev,
           {
             role: "assistant",
-            content: "something broke. check your connection and try again.",
+            content: "Connection lost. Check your network and try again.",
             timestamp: Date.now(),
           },
         ]);
       } finally {
         setLoading(false);
+        setStreaming(false);
       }
     };
 
@@ -367,9 +423,10 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
       sendMessage(newText, index);
     };
 
+    const isResponding = loading || streaming;
     const canSend = listening
-      ? liveTranscript.trim().length > 0 && !loading
-      : input.trim().length > 0 && !loading;
+      ? liveTranscript.trim().length > 0 && !isResponding
+      : input.trim().length > 0 && !isResponding;
 
     return (
       <main
@@ -411,7 +468,6 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
             </h2>
           </div>
 
-          {/* MODE INDICATOR */}
           {mode === "deep" && (
             <motion.div
               initial={{ opacity: 0, x: 10 }}
@@ -697,24 +753,41 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
                         }}
                       >
                         {msg.content}
+                        {streaming && i === messages.length - 1 && (
+                          <motion.span
+                            animate={{ opacity: [1, 0] }}
+                            transition={{ duration: 0.6, repeat: Infinity, ease: "easeInOut" }}
+                            style={{
+                              display: "inline-block",
+                              width: "2px",
+                              height: "15px",
+                              background: "var(--sk-accent)",
+                              marginLeft: "2px",
+                              verticalAlign: "middle",
+                              borderRadius: "1px",
+                            }}
+                          />
+                        )}
                       </div>
-                      <div
-                        className="flex gap-1 mt-3 opacity-0 group-hover:opacity-100"
-                        style={{ transition: "opacity 0.2s" }}
-                      >
-                        <IconButton label="Copy" onClick={() => handleCopy(msg.content)}>
-                          <CopyIcon />
-                        </IconButton>
-                        <IconButton label="Save to Document" onClick={() => handleSaveToDocument(msg.content)}>
-                          <SaveIcon />
-                        </IconButton>
-                      </div>
+                      {!(streaming && i === messages.length - 1) && (
+                        <div
+                          className="flex gap-1 mt-3 opacity-0 group-hover:opacity-100"
+                          style={{ transition: "opacity 0.2s" }}
+                        >
+                          <IconButton label="Copy" onClick={() => handleCopy(msg.content)}>
+                            <CopyIcon />
+                          </IconButton>
+                          <IconButton label="Save to Document" onClick={() => handleSaveToDocument(msg.content)}>
+                            <SaveIcon />
+                          </IconButton>
+                        </div>
+                      )}
                     </div>
                   )}
                 </motion.div>
               ))}
 
-              {loading && (
+              {loading && !streaming && (
                 <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}>
                   <p
                     style={{
@@ -778,11 +851,7 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
           >
             <AnimatePresence mode="wait">
               {listening ? (
-                <VoiceVisualizer
-                  key="voice"
-                  active={listening}
-                  transcript={liveTranscript}
-                />
+                <VoiceVisualizer key="voice" active={listening} transcript={liveTranscript} />
               ) : (
                 <motion.textarea
                   key="textarea"
@@ -818,7 +887,6 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
               )}
             </AnimatePresence>
 
-            {/* PAPERCLIP (file upload placeholder) */}
             <button
               onClick={() => flashToast("File upload — coming soon")}
               title="Attach file — coming soon"
@@ -845,7 +913,6 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
               <PaperclipIcon />
             </button>
 
-            {/* MODE TOGGLE (Quick / Deep) */}
             <button
               onClick={() => setMode(mode === "quick" ? "deep" : "quick")}
               title={mode === "quick" ? "Switch to Deep Mode" : "Switch to Quick Mode"}
@@ -854,14 +921,8 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
                 height: "36px",
                 padding: "0 10px",
                 borderRadius: "5px",
-                border:
-                  mode === "deep"
-                    ? "1px solid var(--sk-accent)"
-                    : "1px solid rgba(240, 230, 210, 0.12)",
-                background:
-                  mode === "deep"
-                    ? "rgba(207, 157, 123, 0.15)"
-                    : "transparent",
+                border: mode === "deep" ? "1px solid var(--sk-accent)" : "1px solid rgba(240, 230, 210, 0.12)",
+                background: mode === "deep" ? "rgba(207, 157, 123, 0.15)" : "transparent",
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
@@ -879,7 +940,6 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
               {mode === "deep" ? "Deep" : "Quick"}
             </button>
 
-            {/* MIC BUTTON */}
             {voiceSupported && (
               <button
                 onClick={toggleVoice}
@@ -889,12 +949,8 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
                   width: "36px",
                   height: "36px",
                   borderRadius: "5px",
-                  border: listening
-                    ? "1px solid var(--sk-accent)"
-                    : "1px solid rgba(240, 230, 210, 0.12)",
-                  background: listening
-                    ? "rgba(207, 157, 123, 0.15)"
-                    : "transparent",
+                  border: listening ? "1px solid var(--sk-accent)" : "1px solid rgba(240, 230, 210, 0.12)",
+                  background: listening ? "rgba(207, 157, 123, 0.15)" : "transparent",
                   cursor: "pointer",
                   display: "flex",
                   alignItems: "center",
@@ -909,7 +965,6 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
               </button>
             )}
 
-            {/* SEND BUTTON */}
             <motion.button
               onClick={handleSend}
               disabled={!canSend}
@@ -925,21 +980,17 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
                 width: "36px",
                 height: "36px",
                 borderRadius: "5px",
-                border: canSend
-                  ? "1px solid var(--sk-accent)"
-                  : "1px solid rgba(240, 230, 210, 0.08)",
+                border: canSend ? "1px solid var(--sk-accent)" : "1px solid rgba(240, 230, 210, 0.08)",
                 background: canSend ? "var(--sk-accent)" : "transparent",
                 cursor: canSend ? "pointer" : "default",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                boxShadow: canSend
-                  ? "0 0 14px rgba(207, 157, 123, 0.4)"
-                  : "none",
+                boxShadow: canSend ? "0 0 14px rgba(207, 157, 123, 0.4)" : "none",
                 transition: "background 0.2s, border 0.2s, box-shadow 0.2s",
               }}
             >
-              {loading ? (
+              {isResponding ? (
                 <span
                   style={{
                     fontFamily: "'JetBrains Mono', monospace",
@@ -972,7 +1023,6 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
           </p>
         </div>
 
-        {/* TOAST */}
         <AnimatePresence>
           {toast && (
             <motion.div

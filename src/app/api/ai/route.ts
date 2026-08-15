@@ -1,9 +1,9 @@
 // src/app/api/ai/route.ts
 // Unified API for all 13 Studio AIs
-// Supports Quick + Deep modes
+// Supports Quick + Deep modes + STREAMING
 
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { getAIById } from "@/data/ai-registry";
 
 const GEMINI_MODEL = "gemini-flash-lite-latest";
@@ -38,25 +38,25 @@ function buildFinalPrompt(
     mode === "deep"
       ? `
 # CURRENT MODE: DEEP RESEARCH
-The user just toggled DEEP mode. This means they want a THOROUGH, RESEARCHED, MULTI-ANGLE response — not your usual punchy 3-paragraph reply.
+The user just toggled DEEP mode. This means they want a THOROUGH, RESEARCHED, MULTI-ANGLE response.
 
 Rules for DEEP mode:
-- Length: 6-12 paragraphs is fine. Use as much space as the topic ACTUALLY needs.
+- Length: 6-12 paragraphs. Use as much space as the topic ACTUALLY needs.
 - Structure: Use short headers (##) to organize sections if the answer has 3+ angles.
 - Depth: Include real examples, benchmarks, frameworks, counterexamples, edge cases.
-- Voice: STAY IN CHARACTER. Full Pihu voice throughout. "yoo", "bruh", "look", "here's the thing" — sprinkled naturally. Never turn into a Wikipedia article. You're a founder-brain best friend going DEEP on a topic, not a textbook.
+- Voice: STAY IN CHARACTER. The Architect voice throughout. Never turn into a Wikipedia article.
 - Structure example (adapt as needed):
-  1. Quick reframe/reality check (1 para — "ok so let me tell u what's really going on...")
+  1. Cold observation or reframe (1 para)
   2. The framework or angles (headers + explanation)
-  3. Real examples or benchmarks ("look at how X did it...")
+  3. Real examples or benchmarks
   4. Common traps to avoid
-  5. What to ACTUALLY do (the specific next steps)
-  6. End with a DARE (always)
-- Still no emojis. Still no "great question!" Still no "as an AI." Still ends with a dare.
+  5. What to ACTUALLY do (specific next steps)
+  6. End with a dare or a mirror
+- Still no emojis. Still no "great question!" Still no "as an AI."
 `
       : `
 # CURRENT MODE: QUICK
-Punchy, tight, 2-4 short paragraphs max. No headers. Fast reality check energy. Every sentence earns its spot. End with a dare.
+Punchy, tight, 2-4 short paragraphs max. No headers. Fast reality check energy. Every sentence earns its spot. End with a dare or a quiet question.
 `;
 
   return `${aiSystemPrompt}
@@ -103,7 +103,7 @@ function sanitizeHistoryForGemini(
 }
 
 // ═══════════════════════════════════════════
-// POST HANDLER
+// POST HANDLER — STREAMING
 // ═══════════════════════════════════════════
 export async function POST(req: NextRequest) {
   try {
@@ -119,34 +119,32 @@ export async function POST(req: NextRequest) {
     } = body;
 
     if (!aiId?.trim()) {
-      return NextResponse.json(
-        { reply: "no AI selected bruh. something's off." },
-        { status: 400 }
+      return new Response(
+        JSON.stringify({ error: "No AI selected." }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
 
     if (!message?.trim()) {
-      return NextResponse.json(
-        { reply: "send an actual question dude, i'm not psychic." },
-        { status: 400 }
+      return new Response(
+        JSON.stringify({ error: "Empty message." }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
       );
     }
 
     const ai = getAIById(aiId);
     if (!ai) {
-      console.error("AI not found in registry:", aiId);
-      return NextResponse.json(
-        { reply: "that AI doesn't exist. reload and try again." },
-        { status: 404 }
+      return new Response(
+        JSON.stringify({ error: "AI not found." }),
+        { status: 404, headers: { "Content-Type": "application/json" } }
       );
     }
 
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      console.error("GEMINI_API_KEY missing");
-      return NextResponse.json(
-        { reply: "AI is offline. server config issue." },
-        { status: 500 }
+      return new Response(
+        JSON.stringify({ error: "API key missing." }),
+        { status: 500, headers: { "Content-Type": "application/json" } }
       );
     }
 
@@ -166,45 +164,61 @@ export async function POST(req: NextRequest) {
 
     const geminiHistory = sanitizeHistoryForGemini(history || []);
 
-    // Different generation config per mode
     const generationConfig =
       mode === "deep"
-        ? {
-            temperature: 0.9,
-            maxOutputTokens: 2000,
-            topP: 0.98,
-          }
-        : {
-            temperature: 0.95,
-            maxOutputTokens: 700,
-            topP: 0.98,
-          };
+        ? { temperature: 0.9, maxOutputTokens: 2000, topP: 0.98 }
+        : { temperature: 0.95, maxOutputTokens: 700, topP: 0.98 };
 
     const chat = model.startChat({
       history: geminiHistory,
       generationConfig,
     });
 
-    const result = await chat.sendMessage(message);
-    const reply = result.response.text();
+    // ── STREAM ────────────────────────────────────────────────
+    const streamResult = await chat.sendMessageStream(message);
 
-    return NextResponse.json({ reply });
+    const stream = new ReadableStream({
+      async start(controller) {
+        const encoder = new TextEncoder();
+        try {
+          for await (const chunk of streamResult.stream) {
+            const text = chunk.text();
+            if (text) {
+              controller.enqueue(encoder.encode(text));
+            }
+          }
+        } catch (err) {
+          controller.error(err);
+        } finally {
+          controller.close();
+        }
+      },
+    });
+
+    return new Response(stream, {
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+        "X-Content-Type-Options": "nosniff",
+        "Cache-Control": "no-cache",
+        "Transfer-Encoding": "chunked",
+      },
+    });
   } catch (err: unknown) {
-    const errorMessage =
-      err instanceof Error ? err.message : "Unknown error";
+    const errorMessage = err instanceof Error ? err.message : "Unknown error";
     console.error("Studio AI API error:", errorMessage);
 
-    let userMessage = "something broke on my end. try again in a sec.";
+    let userMessage = "Something broke on my end. Try again.";
     if (errorMessage.includes("quota") || errorMessage.includes("limit")) {
-      userMessage =
-        "hit the AI usage limit. wait a min and try again.";
+      userMessage = "Usage limit reached. Wait a moment and try again.";
     } else if (errorMessage.includes("API key")) {
-      userMessage = "AI config issue. check the server.";
+      userMessage = "API configuration issue.";
     } else if (errorMessage.includes("SAFETY")) {
-      userMessage =
-        "gemini blocked that for safety. try rephrasing.";
+      userMessage = "Blocked for safety. Try rephrasing.";
     }
 
-    return NextResponse.json({ reply: userMessage }, { status: 500 });
+    return new Response(userMessage, {
+      status: 500,
+      headers: { "Content-Type": "text/plain" },
+    });
   }
 }
