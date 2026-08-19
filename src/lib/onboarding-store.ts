@@ -10,7 +10,6 @@ export interface UserProfile {
   experience: "successful" | "failed" | "first-time" | "helped-others";
   ideaStage: "vague" | "clear" | "validating" | "building" | "launched";
   timeCommitment: "under-5" | "5-10" | "10-20" | "20-plus" | "full-time";
-  communicationStyle: "brutal" | "honest-kind" | "supportive" | "just-facts";
   biggestBlocker: "no-start" | "too-many-ideas" | "no-tech" | "no-time" | "no-confidence" | "no-plan";
 }
 
@@ -71,7 +70,7 @@ export function hasSeenManifesto(): boolean {
   return localStorage.getItem(MANIFESTO_KEY) === "true";
 }
 
-// ── Profile → Human-Readable Context (for Gemini prompt) ─────────
+// ── Profile → Human-Readable Context (for The Architect prompt) ──
 
 export function buildProfileContext(profile: UserProfile | null): string {
   if (!profile) return "No user profile available.";
@@ -108,13 +107,6 @@ export function buildProfileContext(profile: UserProfile | null): string {
     "full-time": "full-time on this",
   };
 
-  const styleMap: Record<UserProfile["communicationStyle"], string> = {
-    brutal: "wants brutal, no-BS honesty",
-    "honest-kind": "wants honest but kind feedback",
-    supportive: "wants supportive and encouraging feedback",
-    "just-facts": "wants just the facts, no fluff",
-  };
-
   const blockerMap: Record<UserProfile["biggestBlocker"], string> = {
     "no-start": "doesn't know where to start",
     "too-many-ideas": "has too many ideas and can't pick one",
@@ -131,10 +123,9 @@ FOUNDER PROFILE:
 - Experience: ${experienceMap[profile.experience]}
 - Idea stage: ${stageMap[profile.ideaStage]}
 - Time available: ${timeMap[profile.timeCommitment]}
-- Communication preference: ${styleMap[profile.communicationStyle]}
 - Biggest blocker: ${blockerMap[profile.biggestBlocker]}
 
-IMPORTANT: Adapt your tone to match their communication preference.
-Address them as ${profile.name}. Be specific to their stage and background.
+IMPORTANT: Address them as ${profile.name}. Be specific to their stage and background.
+Stay in The Architect voice. No softening. No consultant-speak.
   `.trim();
 }

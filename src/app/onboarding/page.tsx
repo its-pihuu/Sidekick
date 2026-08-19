@@ -64,7 +64,6 @@ export default function OnboardingPage() {
     experience: (answers.experience as UserProfile["experience"]) || "first-time",
     ideaStage: (answers.ideaStage as UserProfile["ideaStage"]) || "vague",
     timeCommitment: (answers.timeCommitment as UserProfile["timeCommitment"]) || "5-10",
-    communicationStyle: (answers.communicationStyle as UserProfile["communicationStyle"]) || "honest-kind",
     biggestBlocker: (answers.biggestBlocker as UserProfile["biggestBlocker"]) || "no-plan",
   };
 
