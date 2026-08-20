@@ -1,5 +1,5 @@
 // src/app/page.tsx
-// SIDEKICK — Full Luxury Landing Page
+// SIDEKICK — Full Luxury Landing Page (Mobile Responsive)
 
 "use client";
 
@@ -14,18 +14,18 @@ import { CinematicIntro } from "@/components/brand/cinematic-intro";
 const HOW_IT_WORKS = [
   {
     step: "01",
-    title: "Answer 7 questions.",
-    detail: "We learn how you think — your voice, your rhythm, your ambition.",
+    title: "Answer 6 questions.",
+    detail: "We learn how you think — your stage, your blocker, your vision.",
   },
   {
     step: "02",
     title: "Chat with your Sidekick.",
-    detail: "Thirteen specialists. Every angle your product needs to sharpen.",
+    detail: "Thirteen specialist AIs led by The Architect. Every angle sharpened.",
   },
   {
     step: "03",
     title: "Ship your plan.",
-    detail: "A real document. Ready to share with cofounders, investors, or yourself.",
+    detail: "A real executable document. Ready to share or execute.",
   },
 ];
 
@@ -69,11 +69,11 @@ const FAQS = [
   },
   {
     q: "Is it really free?",
-    a: "Yes. The core canvas is free forever. Pro unlocks unlimited AI conversations and export options — coming soon.",
+    a: "Yes. 100% free. All 13 AI specialists are unlocked with zero tier gating.",
   },
   {
     q: "How is this different from ChatGPT?",
-    a: "ChatGPT is a blank box. Sidekick knows what your product plan needs, has 13 specialist AIs trained on your business, and structures your thinking into a real document.",
+    a: "ChatGPT is a blank box. Sidekick has 13 specialist personas with signature moves, project workspace isolation, and The Architect voice.",
   },
   {
     q: "Do I need to know how to code?",
@@ -81,11 +81,11 @@ const FAQS = [
   },
   {
     q: "What happens to my data?",
-    a: "Everything stays on your device. We don't sell your ideas. We don't train models on them. Your plan is yours.",
+    a: "Everything stays in your browser's localStorage. We don't sell your ideas. We don't train models on them.",
   },
   {
-    q: "When does the AI part launch?",
-    a: "Live now. All 13 AI specialists are working today.",
+    q: "Are the AIs available right now?",
+    a: "Live now. All 13 AI specialists, voice input, and image analysis are working today.",
   },
 ];
 
@@ -118,7 +118,6 @@ export default function LandingPage() {
     }
   }, [introDone, isReturningUser, checkedAuth, router]);
 
-  // Where does the CTA button go?
   const primaryCTA = isReturningUser ? "/studio" : "/onboarding";
   const primaryCTALabel = isReturningUser ? "Continue" : "Begin";
 
@@ -127,20 +126,20 @@ export default function LandingPage() {
       {!introDone && <CinematicIntro onComplete={() => setIntroDone(true)} />}
 
       <main
-        className="min-h-screen relative"
+        className="min-h-screen relative overflow-x-hidden"
         style={{ backgroundColor: "var(--sk-bg)" }}
       >
         {/* ═══════════════════════════════════════════════════════════════ */}
         {/* HEADER                                                            */}
         {/* ═══════════════════════════════════════════════════════════════ */}
-        <header className="relative z-10 flex justify-between items-center px-8 sm:px-12 py-8">
+        <header className="relative z-10 flex justify-between items-center px-5 sm:px-12 py-6 sm:py-8">
           <div className="flex items-end leading-none">
             <span
               className="italic"
               style={{
                 fontFamily: "'Cormorant Garamond', Georgia, serif",
                 color: "var(--sk-text)",
-                fontSize: "28px",
+                fontSize: "24px",
                 fontWeight: 500,
               }}
             >
@@ -155,7 +154,14 @@ export default function LandingPage() {
             />
           </div>
 
-          <nav className="flex items-center gap-8">
+          <nav className="flex items-center gap-5 sm:gap-8">
+            <Link
+              href="/about"
+              className="font-mono text-[10px] sm:text-[11px] tracking-[0.2em] uppercase transition-opacity hover:opacity-70"
+              style={{ color: "var(--sk-text-muted)" }}
+            >
+              About
+            </Link>
             <a
               href="#beliefs"
               className="hidden sm:block font-mono text-[11px] tracking-[0.2em] uppercase transition-opacity hover:opacity-70"
@@ -163,17 +169,10 @@ export default function LandingPage() {
             >
               Beliefs
             </a>
-            <a
-              href="#how"
-              className="hidden sm:block font-mono text-[11px] tracking-[0.2em] uppercase transition-opacity hover:opacity-70"
-              style={{ color: "var(--sk-text-muted)" }}
-            >
-              How
-            </a>
             <Link
               href={primaryCTA}
-              className="font-mono text-[11px] tracking-[0.2em] uppercase transition-opacity hover:opacity-70"
-              style={{ color: "var(--sk-text-muted)" }}
+              className="font-mono text-[10px] sm:text-[11px] tracking-[0.2em] uppercase transition-opacity hover:opacity-70"
+              style={{ color: "var(--sk-accent)" }}
             >
               {isReturningUser ? "Continue →" : "Enter →"}
             </Link>
@@ -183,7 +182,7 @@ export default function LandingPage() {
         {/* ═══════════════════════════════════════════════════════════════ */}
         {/* HERO                                                              */}
         {/* ═══════════════════════════════════════════════════════════════ */}
-        <section className="relative flex flex-col items-center justify-center px-6 text-center pt-24 pb-32">
+        <section className="relative flex flex-col items-center justify-center px-5 sm:px-6 text-center pt-16 sm:pt-24 pb-20 sm:pb-32">
           <div
             className="absolute inset-0 pointer-events-none"
             style={{
@@ -202,21 +201,21 @@ export default function LandingPage() {
             className="relative z-10 max-w-5xl"
           >
             <div
-              className="font-mono text-[11px] tracking-[0.3em] uppercase mb-10"
+              className="font-mono text-[9px] sm:text-[11px] tracking-[0.25em] sm:tracking-[0.3em] uppercase mb-6 sm:mb-10"
               style={{ color: "var(--sk-text-faint)" }}
             >
               — For the founder with an idea —
             </div>
 
             <h1
-              className="italic mb-8"
+              className="italic mb-6 sm:mb-8"
               style={{
                 fontFamily: "'Cormorant Garamond', Georgia, serif",
                 color: "var(--sk-text)",
-                fontSize: "clamp(48px, 8vw, 104px)",
+                fontSize: "clamp(38px, 7.5vw, 104px)",
                 fontWeight: 400,
                 letterSpacing: "-0.02em",
-                lineHeight: 1.05,
+                lineHeight: 1.08,
               }}
             >
               Walk in with a vision.
@@ -227,23 +226,23 @@ export default function LandingPage() {
             </h1>
 
             <p
-              className="italic max-w-2xl mx-auto mb-14"
+              className="italic max-w-2xl mx-auto mb-10 sm:mb-14 px-2"
               style={{
                 fontFamily: "'Cormorant Garamond', Georgia, serif",
                 color: "var(--sk-text-muted)",
-                fontSize: "clamp(18px, 2.4vw, 24px)",
-                lineHeight: 1.4,
+                fontSize: "clamp(16px, 2.2vw, 24px)",
+                lineHeight: 1.45,
               }}
             >
               The thinking partner that turns your messy idea into a real product plan.
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Link href={primaryCTA}>
+              <Link href={primaryCTA} className="w-full sm:w-auto">
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  className="px-10 py-4 rounded-md font-mono text-[11px] tracking-[0.25em] uppercase transition-all"
+                  className="w-full sm:w-auto px-8 sm:px-10 py-3.5 sm:py-4 rounded-md font-mono text-[10px] sm:text-[11px] tracking-[0.25em] uppercase transition-all"
                   style={{
                     backgroundColor: "var(--sk-accent)",
                     color: "var(--sk-bg)",
@@ -265,13 +264,13 @@ export default function LandingPage() {
           <SectionHeadline>
             Your idea is dying in your head.
           </SectionHeadline>
-          <div className="max-w-3xl mx-auto text-center space-y-5">
+          <div className="max-w-3xl mx-auto text-center space-y-4 sm:space-y-5">
             <p
               className="italic"
               style={{
                 fontFamily: "'Cormorant Garamond', Georgia, serif",
                 color: "var(--sk-text-muted)",
-                fontSize: "22px",
+                fontSize: "clamp(18px, 2.5vw, 22px)",
                 lineHeight: 1.6,
               }}
             >
@@ -282,18 +281,18 @@ export default function LandingPage() {
               style={{
                 fontFamily: "'Cormorant Garamond', Georgia, serif",
                 color: "var(--sk-text-muted)",
-                fontSize: "22px",
+                fontSize: "clamp(18px, 2.5vw, 22px)",
                 lineHeight: 1.6,
               }}
             >
               It still lives nowhere but inside you.
             </p>
-            <div className="pt-8">
+            <div className="pt-6 sm:pt-8">
               <p
                 style={{
                   fontFamily: "'Cormorant Garamond', Georgia, serif",
                   color: "var(--sk-accent)",
-                  fontSize: "clamp(24px, 3vw, 32px)",
+                  fontSize: "clamp(20px, 3vw, 32px)",
                   fontStyle: "italic",
                   lineHeight: 1.3,
                 }}
@@ -311,28 +310,28 @@ export default function LandingPage() {
           <SectionLabel>How It Works</SectionLabel>
           <SectionHeadline>Three quiet steps.</SectionHeadline>
 
-          <div className="max-w-4xl mx-auto grid md:grid-cols-3 gap-8 md:gap-12 mt-8">
+          <div className="max-w-4xl mx-auto grid md:grid-cols-3 gap-8 sm:gap-12 mt-6 sm:mt-8">
             {HOW_IT_WORKS.map((s, i) => (
               <motion.div
                 key={s.step}
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: "-100px" }}
+                viewport={{ once: true, margin: "-80px" }}
                 transition={{ duration: 0.7, delay: i * 0.15 }}
-                className="text-center"
+                className="text-center px-2"
               >
                 <div
-                  className="font-mono text-[11px] tracking-[0.25em] uppercase mb-6"
+                  className="font-mono text-[10px] sm:text-[11px] tracking-[0.25em] uppercase mb-4 sm:mb-6"
                   style={{ color: "var(--sk-accent)" }}
                 >
                   Step · {s.step}
                 </div>
                 <h3
-                  className="italic mb-4"
+                  className="italic mb-3 sm:mb-4"
                   style={{
                     fontFamily: "'Cormorant Garamond', Georgia, serif",
                     color: "var(--sk-text)",
-                    fontSize: "clamp(24px, 3vw, 32px)",
+                    fontSize: "clamp(22px, 3vw, 32px)",
                     fontWeight: 500,
                     lineHeight: 1.2,
                   }}
@@ -344,7 +343,7 @@ export default function LandingPage() {
                   style={{
                     fontFamily: "'Cormorant Garamond', Georgia, serif",
                     color: "var(--sk-text-muted)",
-                    fontSize: "17px",
+                    fontSize: "16px",
                     lineHeight: 1.6,
                   }}
                 >
@@ -362,8 +361,8 @@ export default function LandingPage() {
           <SectionLabel>What&apos;s Inside</SectionLabel>
           <SectionHeadline>Eleven sections. Every question that matters.</SectionHeadline>
 
-          <div className="max-w-4xl mx-auto mt-8">
-            <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-4">
+          <div className="max-w-4xl mx-auto mt-6 sm:mt-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-2 sm:gap-y-4">
               {WHATS_INSIDE.map((s, i) => (
                 <motion.div
                   key={s}
@@ -371,11 +370,11 @@ export default function LandingPage() {
                   whileInView={{ opacity: 1, x: 0 }}
                   viewport={{ once: true }}
                   transition={{ duration: 0.4, delay: i * 0.04 }}
-                  className="flex items-baseline gap-4 py-3"
+                  className="flex items-baseline gap-4 py-2.5 sm:py-3"
                   style={{ borderBottom: "1px solid var(--sk-border)" }}
                 >
                   <span
-                    className="font-mono text-[10px] tracking-[0.2em]"
+                    className="font-mono text-[9px] sm:text-[10px] tracking-[0.2em]"
                     style={{ color: "var(--sk-text-faint)" }}
                   >
                     {String(i + 1).padStart(2, "0")}
@@ -385,7 +384,7 @@ export default function LandingPage() {
                     style={{
                       fontFamily: "'Cormorant Garamond', Georgia, serif",
                       color: "var(--sk-text)",
-                      fontSize: "20px",
+                      fontSize: "18px",
                     }}
                   >
                     {s}
@@ -403,18 +402,18 @@ export default function LandingPage() {
           <SectionLabel>The Manifesto</SectionLabel>
           <SectionHeadline>Nine things we believe.</SectionHeadline>
 
-          <div className="max-w-3xl mx-auto mt-12 space-y-8">
+          <div className="max-w-3xl mx-auto mt-8 sm:mt-12 space-y-6 sm:space-y-8">
             {BELIEFS.map((b, i) => (
               <motion.div
                 key={b.n}
                 initial={{ opacity: 0, y: 12 }}
                 whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, margin: "-80px" }}
-                transition={{ duration: 0.6, delay: i * 0.06 }}
-                className="flex items-baseline gap-6 md:gap-10"
+                viewport={{ once: true, margin: "-60px" }}
+                transition={{ duration: 0.6, delay: i * 0.05 }}
+                className="flex items-baseline gap-4 sm:gap-10"
               >
                 <span
-                  className="font-mono text-[11px] tracking-[0.25em] flex-shrink-0"
+                  className="font-mono text-[10px] sm:text-[11px] tracking-[0.25em] flex-shrink-0"
                   style={{ color: "var(--sk-accent)" }}
                 >
                   {b.n}
@@ -424,7 +423,7 @@ export default function LandingPage() {
                   style={{
                     fontFamily: "'Cormorant Garamond', Georgia, serif",
                     color: "var(--sk-text)",
-                    fontSize: "clamp(20px, 2.4vw, 28px)",
+                    fontSize: "clamp(18px, 2.4vw, 28px)",
                     lineHeight: 1.4,
                     fontWeight: 400,
                   }}
@@ -443,7 +442,7 @@ export default function LandingPage() {
           <SectionLabel>Whispers</SectionLabel>
           <SectionHeadline>What early founders are saying.</SectionHeadline>
 
-          <div className="max-w-4xl mx-auto grid md:grid-cols-2 gap-8 mt-8">
+          <div className="max-w-4xl mx-auto grid md:grid-cols-2 gap-6 sm:gap-8 mt-6 sm:mt-8">
             {TESTIMONIALS.map((t, i) => (
               <motion.div
                 key={i}
@@ -451,7 +450,7 @@ export default function LandingPage() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.6, delay: i * 0.1 }}
-                className="p-8 rounded-lg"
+                className="p-6 sm:p-8 rounded-lg"
                 style={{
                   border: "1px solid var(--sk-border)",
                   backgroundColor: "var(--sk-bg-card)",
@@ -462,14 +461,14 @@ export default function LandingPage() {
                   style={{
                     fontFamily: "'Cormorant Garamond', Georgia, serif",
                     color: "var(--sk-text)",
-                    fontSize: "20px",
+                    fontSize: "18px",
                     lineHeight: 1.5,
                   }}
                 >
                   &ldquo;{t}&rdquo;
                 </p>
                 <div
-                  className="mt-6 h-px w-8"
+                  className="mt-4 sm:mt-6 h-px w-8"
                   style={{ backgroundColor: "var(--sk-accent-soft)" }}
                 />
               </motion.div>
@@ -484,25 +483,24 @@ export default function LandingPage() {
           <SectionLabel>Questions</SectionLabel>
           <SectionHeadline>You were going to ask anyway.</SectionHeadline>
 
-          <div className="max-w-3xl mx-auto mt-10">
+          <div className="max-w-3xl mx-auto mt-6 sm:mt-10">
             {FAQS.map((f, i) => {
               const isOpen = openFAQ === i;
               return (
                 <div
                   key={i}
                   style={{ borderTop: "1px solid var(--sk-border)" }}
-                  className={i === FAQS.length - 1 ? "" : ""}
                 >
                   <button
                     onClick={() => setOpenFAQ(isOpen ? null : i)}
-                    className="w-full flex items-center justify-between py-6 text-left transition-opacity hover:opacity-80"
+                    className="w-full flex items-center justify-between py-4 sm:py-6 text-left transition-opacity hover:opacity-80"
                   >
                     <span
-                      className="italic pr-6"
+                      className="italic pr-4 sm:pr-6"
                       style={{
                         fontFamily: "'Cormorant Garamond', Georgia, serif",
                         color: "var(--sk-text)",
-                        fontSize: "clamp(20px, 2.4vw, 26px)",
+                        fontSize: "clamp(18px, 2.4vw, 26px)",
                         lineHeight: 1.3,
                       }}
                     >
@@ -524,15 +522,15 @@ export default function LandingPage() {
                       height: isOpen ? "auto" : 0,
                       opacity: isOpen ? 1 : 0,
                     }}
-                    transition={{ duration: 0.4, ease: "easeInOut" }}
+                    transition={{ duration: 0.3, ease: "easeInOut" }}
                     style={{ overflow: "hidden" }}
                   >
                     <p
-                      className="italic pb-8 pr-12"
+                      className="italic pb-6 sm:pb-8 pr-6 sm:pr-12"
                       style={{
                         fontFamily: "'Cormorant Garamond', Georgia, serif",
                         color: "var(--sk-text-muted)",
-                        fontSize: "18px",
+                        fontSize: "16px",
                         lineHeight: 1.6,
                       }}
                     >
@@ -549,7 +547,7 @@ export default function LandingPage() {
         {/* ═══════════════════════════════════════════════════════════════ */}
         {/* FINAL CTA                                                         */}
         {/* ═══════════════════════════════════════════════════════════════ */}
-        <section className="relative py-32 px-6 text-center">
+        <section className="relative py-20 sm:py-32 px-5 text-center">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -558,11 +556,11 @@ export default function LandingPage() {
             className="max-w-4xl mx-auto"
           >
             <h2
-              className="italic mb-6"
+              className="italic mb-4 sm:mb-6"
               style={{
                 fontFamily: "'Cormorant Garamond', Georgia, serif",
                 color: "var(--sk-text)",
-                fontSize: "clamp(40px, 6vw, 72px)",
+                fontSize: "clamp(32px, 6vw, 72px)",
                 fontWeight: 400,
                 letterSpacing: "-0.02em",
                 lineHeight: 1.1,
@@ -573,21 +571,21 @@ export default function LandingPage() {
               <span style={{ color: "var(--sk-accent)" }}>Start planning.</span>
             </h2>
             <p
-              className="italic mb-12 max-w-xl mx-auto"
+              className="italic mb-8 sm:mb-12 max-w-xl mx-auto"
               style={{
                 fontFamily: "'Cormorant Garamond', Georgia, serif",
                 color: "var(--sk-text-muted)",
-                fontSize: "20px",
+                fontSize: "18px",
               }}
             >
               Your idea has waited long enough.
             </p>
 
-            <Link href={primaryCTA}>
+            <Link href={primaryCTA} className="inline-block w-full sm:w-auto">
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                className="px-12 py-5 rounded-md font-mono text-[11px] tracking-[0.25em] uppercase transition-all"
+                className="w-full sm:w-auto px-10 sm:px-12 py-4 sm:py-5 rounded-md font-mono text-[10px] sm:text-[11px] tracking-[0.25em] uppercase transition-all"
                 style={{
                   backgroundColor: "var(--sk-accent)",
                   color: "var(--sk-bg)",
@@ -604,19 +602,19 @@ export default function LandingPage() {
         {/* FOOTER                                                            */}
         {/* ═══════════════════════════════════════════════════════════════ */}
         <footer
-          className="relative py-16 px-8"
+          className="relative py-12 sm:py-16 px-5 sm:px-8"
           style={{ borderTop: "1px solid var(--sk-border)" }}
         >
-          <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-8">
+          <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6 sm:gap-8">
             {/* Left — wordmark + tagline */}
-            <div className="flex flex-col items-center md:items-start gap-3">
+            <div className="flex flex-col items-center md:items-start gap-2 sm:gap-3">
               <div className="flex items-end leading-none">
                 <span
                   className="italic"
                   style={{
                     fontFamily: "'Cormorant Garamond', Georgia, serif",
                     color: "var(--sk-text)",
-                    fontSize: "22px",
+                    fontSize: "20px",
                     fontWeight: 500,
                   }}
                 >
@@ -630,11 +628,11 @@ export default function LandingPage() {
                 />
               </div>
               <p
-                className="italic"
+                className="italic text-center md:text-left"
                 style={{
                   fontFamily: "'Cormorant Garamond', Georgia, serif",
                   color: "var(--sk-text-muted)",
-                  fontSize: "14px",
+                  fontSize: "13px",
                 }}
               >
                 Every great founder has a sidekick.
@@ -643,31 +641,38 @@ export default function LandingPage() {
 
             {/* Right — links + copyright */}
             <div className="flex flex-col items-center md:items-end gap-3">
-              <div className="flex items-center gap-6">
+              <div className="flex flex-wrap justify-center items-center gap-4 sm:gap-6">
+                <Link
+                  href="/about"
+                  className="font-mono text-[9px] sm:text-[10px] tracking-[0.2em] uppercase transition-opacity hover:opacity-70"
+                  style={{ color: "var(--sk-text-muted)" }}
+                >
+                  About
+                </Link>
                 <a
                   href="#beliefs"
-                  className="font-mono text-[10px] tracking-[0.25em] uppercase transition-opacity hover:opacity-70"
+                  className="font-mono text-[9px] sm:text-[10px] tracking-[0.2em] uppercase transition-opacity hover:opacity-70"
                   style={{ color: "var(--sk-text-muted)" }}
                 >
                   Beliefs
                 </a>
                 <Link
                   href="/studio"
-                  className="font-mono text-[10px] tracking-[0.25em] uppercase transition-opacity hover:opacity-70"
+                  className="font-mono text-[9px] sm:text-[10px] tracking-[0.2em] uppercase transition-opacity hover:opacity-70"
                   style={{ color: "var(--sk-text-muted)" }}
                 >
                   Studio
                 </Link>
                 <Link
-                  href={primaryCTA}
-                  className="font-mono text-[10px] tracking-[0.25em] uppercase transition-opacity hover:opacity-70"
+                  href="/settings"
+                  className="font-mono text-[9px] sm:text-[10px] tracking-[0.2em] uppercase transition-opacity hover:opacity-70"
                   style={{ color: "var(--sk-text-muted)" }}
                 >
-                  {primaryCTALabel}
+                  Settings
                 </Link>
               </div>
               <p
-                className="font-mono text-[9px] tracking-[0.3em] uppercase"
+                className="font-mono text-[8px] sm:text-[9px] tracking-[0.25em] uppercase"
                 style={{ color: "var(--sk-text-faint)" }}
               >
                 © 2026 Sidekick · Built for founders
@@ -692,7 +697,7 @@ function SectionWrap({
   return (
     <section
       id={id}
-      className="relative py-24 sm:py-32 px-6"
+      className="relative py-16 sm:py-32 px-4 sm:px-6"
       style={{ borderTop: "1px solid var(--sk-border)" }}
     >
       <div className="max-w-6xl mx-auto">{children}</div>
@@ -703,7 +708,7 @@ function SectionWrap({
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <div
-      className="text-center font-mono text-[11px] tracking-[0.3em] uppercase mb-8"
+      className="text-center font-mono text-[10px] sm:text-[11px] tracking-[0.25em] sm:tracking-[0.3em] uppercase mb-6 sm:mb-8"
       style={{ color: "var(--sk-accent)" }}
     >
       — {children} —
@@ -714,14 +719,14 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 function SectionHeadline({ children }: { children: React.ReactNode }) {
   return (
     <h2
-      className="text-center italic mb-16 max-w-4xl mx-auto"
+      className="text-center italic mb-10 sm:mb-16 max-w-4xl mx-auto px-2"
       style={{
         fontFamily: "'Cormorant Garamond', Georgia, serif",
         color: "var(--sk-text)",
-        fontSize: "clamp(36px, 5.5vw, 64px)",
+        fontSize: "clamp(28px, 5vw, 64px)",
         fontWeight: 400,
         letterSpacing: "-0.015em",
-        lineHeight: 1.1,
+        lineHeight: 1.15,
       }}
     >
       {children}

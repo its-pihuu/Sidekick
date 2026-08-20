@@ -24,6 +24,7 @@ interface StudioSidebarProps {
   onSelectConversation: (conv: StudioConversation) => void;
   onNewChat: () => void;
   onProjectChange?: () => void;
+  onCloseMobile?: () => void;
   refreshTick: number;
 }
 
@@ -34,6 +35,7 @@ export default function StudioSidebar({
   onSelectConversation,
   onNewChat,
   onProjectChange,
+  onCloseMobile,
   refreshTick,
 }: StudioSidebarProps) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -57,7 +59,6 @@ export default function StudioSidebar({
     return () => clearInterval(interval);
   }, []);
 
-  // Listen for project changes to force a re-render
   useEffect(() => {
     const handler = () => setInternalTick((t) => t + 1);
     window.addEventListener("sidekick:project-changed", handler);
@@ -345,7 +346,7 @@ export default function StudioSidebar({
 
   return (
     <aside
-      className="flex flex-col h-full"
+      className="flex flex-col h-full shadow-2xl md:shadow-none"
       style={{
         width: "300px",
         flexShrink: 0,
@@ -355,57 +356,78 @@ export default function StudioSidebar({
     >
       {/* HEADER */}
       <div
-        className="px-5 py-5"
+        className="px-5 py-5 flex items-center justify-between"
         style={{ borderBottom: "1px solid rgba(240, 230, 210, 0.06)" }}
       >
-        <Link href="/canvas" className="flex items-center gap-2">
-          <span
+        <div>
+          <Link href="/canvas" className="flex items-center gap-2">
+            <span
+              style={{
+                fontFamily: "'Cormorant Garamond', serif",
+                fontSize: "22px",
+                fontStyle: "italic",
+                fontWeight: 600,
+                color: "var(--sk-text)",
+              }}
+            >
+              Sidekick
+            </span>
+            <motion.span
+              animate={{
+                boxShadow: [
+                  "0 0 6px 1px rgba(207, 157, 123, 0.65)",
+                  "0 0 14px 3px rgba(207, 157, 123, 1)",
+                  "0 0 6px 1px rgba(207, 157, 123, 0.65)",
+                ],
+              }}
+              transition={{
+                duration: 2.5,
+                repeat: Infinity,
+                ease: "easeInOut",
+              }}
+              style={{
+                width: "6px",
+                height: "6px",
+                borderRadius: "50%",
+                background: "var(--sk-accent)",
+                display: "inline-block",
+                marginBottom: "3px",
+              }}
+            />
+          </Link>
+          <p
             style={{
-              fontFamily: "'Cormorant Garamond', serif",
-              fontSize: "22px",
-              fontStyle: "italic",
-              fontWeight: 600,
+              fontFamily: "'JetBrains Mono', monospace",
+              fontSize: "9px",
+              letterSpacing: "0.14em",
+              textTransform: "uppercase",
               color: "var(--sk-text)",
+              opacity: 0.35,
+              marginTop: "6px",
             }}
           >
-            Sidekick
-          </span>
-          <motion.span
-            animate={{
-              boxShadow: [
-                "0 0 6px 1px rgba(207, 157, 123, 0.65)",
-                "0 0 14px 3px rgba(207, 157, 123, 1)",
-                "0 0 6px 1px rgba(207, 157, 123, 0.65)",
-              ],
-            }}
-            transition={{
-              duration: 2.5,
-              repeat: Infinity,
-              ease: "easeInOut",
-            }}
+            Studio
+          </p>
+        </div>
+
+        {/* MOBILE CLOSE BUTTON */}
+        {onCloseMobile && (
+          <button
+            onClick={onCloseMobile}
+            className="md:hidden p-2 opacity-50 hover:opacity-100 transition-opacity"
+            title="Close menu"
             style={{
-              width: "6px",
-              height: "6px",
-              borderRadius: "50%",
-              background: "var(--sk-accent)",
-              display: "inline-block",
-              marginBottom: "3px",
+              background: "transparent",
+              border: "none",
+              cursor: "pointer",
+              color: "var(--sk-text)",
+              fontSize: "18px",
+              lineHeight: 1,
             }}
-          />
-        </Link>
-        <p
-          style={{
-            fontFamily: "'JetBrains Mono', monospace",
-            fontSize: "9px",
-            letterSpacing: "0.14em",
-            textTransform: "uppercase",
-            color: "var(--sk-text)",
-            opacity: 0.35,
-            marginTop: "6px",
-          }}
-        >
-          Studio
-        </p>
+          >
+            ✕
+          </button>
+        )}
       </div>
 
       {/* PROJECT SWITCHER */}

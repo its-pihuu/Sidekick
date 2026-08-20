@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { AI_REGISTRY, getAIById } from "@/data/ai-registry";
 import { StudioConversation } from "@/lib/studio-history";
 import { ensureActiveProject } from "@/lib/projects-store";
@@ -18,6 +18,7 @@ function StudioContent() {
   const [activeConvId, setActiveConvId] = useState<string | null>(null);
   const [themeLoaded, setThemeLoaded] = useState(false);
   const [refreshTick, setRefreshTick] = useState(0);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const chatRef = useRef<StudioChatHandle>(null);
 
   // ─── ENSURE ACTIVE PROJECT + MARK READY ────────────────────
@@ -51,6 +52,7 @@ function StudioContent() {
   const handleSelectAI = (aiId: string) => {
     setActiveAIId(aiId);
     setActiveConvId(null);
+    setMobileSidebarOpen(false);
     const url = new URL(window.location.href);
     url.searchParams.set("ai", aiId);
     url.searchParams.delete("section");
@@ -68,6 +70,7 @@ function StudioContent() {
       router.replace(url.pathname + url.search);
     }
     setActiveConvId(conv.id);
+    setMobileSidebarOpen(false);
     setTimeout(() => {
       chatRef.current?.loadConversation(conv);
     }, 50);
@@ -76,6 +79,7 @@ function StudioContent() {
   // ─── HANDLE NEW CHAT ───────────────────────────────────────
   const handleNewChat = () => {
     setActiveConvId(null);
+    setMobileSidebarOpen(false);
     chatRef.current?.startNew();
   };
 
@@ -86,12 +90,11 @@ function StudioContent() {
 
   // ─── HANDLE PROJECT CHANGE ─────────────────────────────────
   const handleProjectChange = () => {
-    // Reset chat to empty state — different project, different conversations
     setActiveConvId(null);
     setActiveAIId("sidekick-global");
+    setMobileSidebarOpen(false);
     chatRef.current?.startNew();
     setRefreshTick((t) => t + 1);
-    // Clean URL params
     const url = new URL(window.location.href);
     url.searchParams.delete("ai");
     url.searchParams.delete("section");
@@ -121,22 +124,48 @@ function StudioContent() {
 
   return (
     <div
-      className="h-screen w-screen overflow-hidden flex"
+      className="h-screen w-screen overflow-hidden flex relative"
       style={{ background: "var(--sk-bg)" }}
     >
-      <StudioSidebar
-        activeAIId={activeAIId}
-        activeConversationId={activeConvId}
-        onSelectAI={handleSelectAI}
-        onSelectConversation={handleSelectConversation}
-        onNewChat={handleNewChat}
-        onProjectChange={handleProjectChange}
-        refreshTick={refreshTick}
-      />
+      {/* MOBILE BACKDROP */}
+      <AnimatePresence>
+        {mobileSidebarOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            onClick={() => setMobileSidebarOpen(false)}
+            className="md:hidden fixed inset-0 z-40"
+            style={{ background: "rgba(0, 0, 0, 0.75)", backdropFilter: "blur(2px)" }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* SIDEBAR (Desktop fixed width, Mobile overlay drawer) */}
+      <div
+        className={`fixed md:relative inset-y-0 left-0 z-50 md:z-auto transition-transform duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] md:transform-none ${
+          mobileSidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+        }`}
+      >
+        <StudioSidebar
+          activeAIId={activeAIId}
+          activeConversationId={activeConvId}
+          onSelectAI={handleSelectAI}
+          onSelectConversation={handleSelectConversation}
+          onNewChat={handleNewChat}
+          onProjectChange={handleProjectChange}
+          onCloseMobile={() => setMobileSidebarOpen(false)}
+          refreshTick={refreshTick}
+        />
+      </div>
+
+      {/* CHAT MAIN */}
       <StudioChat
         ref={chatRef}
         ai={activeAI}
         onConversationSaved={handleConversationSaved}
+        onOpenMobileSidebar={() => setMobileSidebarOpen(true)}
       />
     </div>
   );

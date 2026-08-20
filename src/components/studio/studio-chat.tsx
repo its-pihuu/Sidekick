@@ -23,6 +23,7 @@ export interface StudioChatHandle {
 interface StudioChatProps {
   ai: AIPersonality;
   onConversationSaved?: () => void;
+  onOpenMobileSidebar?: () => void;
 }
 
 type ChatMode = "quick" | "deep";
@@ -30,8 +31,8 @@ type ChatMode = "quick" | "deep";
 interface AttachedImage {
   id: string;
   mimeType: string;
-  base64: string;      // pure base64 (no data URL prefix) — sent to API
-  previewUrl: string;  // data URL for <img> preview
+  base64: string;
+  previewUrl: string;
 }
 
 // ── Browser SpeechRecognition types ──────────────────────────
@@ -62,11 +63,8 @@ interface WindowWithSpeech extends Window {
 const TYPEWRITER_DELAY = 18;
 const THINK_DELAY = 600;
 const MAX_IMAGES = 3;
-const MAX_IMAGE_DIMENSION = 1600; // compress if larger
+const MAX_IMAGE_DIMENSION = 1600;
 
-// ═══════════════════════════════════════════
-// IMAGE COMPRESSION UTILITY
-// ═══════════════════════════════════════════
 async function compressImage(file: File): Promise<{ mimeType: string; base64: string; previewUrl: string }> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -102,7 +100,7 @@ async function compressImage(file: File): Promise<{ mimeType: string; base64: st
 }
 
 const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
-  ({ ai, onConversationSaved }, ref) => {
+  ({ ai, onConversationSaved, onOpenMobileSidebar }, ref) => {
     const [, setActiveId] = useState<string | null>(null);
     const [messages, setMessages] = useState<StudioMessage[]>([]);
     const [input, setInput] = useState("");
@@ -393,7 +391,6 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
       setInput("");
       setLoading(true);
 
-      // Snapshot images for API call, then clear preview
       const imagesForApi = attachedImages.map((img) => ({
         mimeType: img.mimeType,
         data: img.base64,
@@ -543,10 +540,9 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
 
     return (
       <main
-        className="flex flex-col flex-1 h-full relative"
+        className="flex flex-col flex-1 h-full relative overflow-hidden"
         style={{ background: "var(--sk-bg)" }}
       >
-        {/* HIDDEN FILE INPUT */}
         <input
           ref={fileInputRef}
           type="file"
@@ -558,37 +554,58 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
 
         {/* HEADER */}
         <header
-          className="px-12 py-6 flex items-center justify-between"
+          className="px-4 sm:px-8 md:px-12 py-4 md:py-6 flex items-center justify-between"
           style={{ borderBottom: "1px solid rgba(240, 230, 210, 0.06)" }}
         >
-          <div>
-            <p
-              style={{
-                fontFamily: "'JetBrains Mono', monospace",
-                fontSize: "10px",
-                letterSpacing: "0.14em",
-                textTransform: "uppercase",
-                color: "var(--sk-accent)",
-                opacity: 0.85,
-                marginBottom: "6px",
-              }}
-            >
-              {ai.description}
-            </p>
-            <h2
-              style={{
-                fontFamily: "'Cormorant Garamond', serif",
-                fontSize: "28px",
-                fontStyle: "italic",
-                fontWeight: 600,
-                color: "var(--sk-text)",
-                lineHeight: 1.2,
-                margin: 0,
-              }}
-            >
-              {ai.name}
-              <span style={{ color: "var(--sk-accent)", marginLeft: "3px" }}>·</span>
-            </h2>
+          <div className="flex items-center gap-3">
+            {/* Hamburger button on mobile */}
+            {onOpenMobileSidebar && (
+              <button
+                onClick={onOpenMobileSidebar}
+                className="md:hidden p-2 rounded"
+                style={{
+                  background: "transparent",
+                  border: "1px solid rgba(240, 230, 210, 0.12)",
+                  color: "var(--sk-text)",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+                title="Open menu"
+              >
+                <MenuIcon />
+              </button>
+            )}
+            <div>
+              <p
+                style={{
+                  fontFamily: "'JetBrains Mono', monospace",
+                  fontSize: "9px",
+                  letterSpacing: "0.14em",
+                  textTransform: "uppercase",
+                  color: "var(--sk-accent)",
+                  opacity: 0.85,
+                  marginBottom: "4px",
+                }}
+              >
+                {ai.description}
+              </p>
+              <h2
+                style={{
+                  fontFamily: "'Cormorant Garamond', serif",
+                  fontSize: "22px",
+                  fontStyle: "italic",
+                  fontWeight: 600,
+                  color: "var(--sk-text)",
+                  lineHeight: 1.2,
+                  margin: 0,
+                }}
+              >
+                {ai.name}
+                <span style={{ color: "var(--sk-accent)", marginLeft: "3px" }}>·</span>
+              </h2>
+            </div>
           </div>
 
           {mode === "deep" && (
@@ -603,31 +620,31 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
                 textTransform: "uppercase",
                 color: "var(--sk-accent)",
                 opacity: 0.85,
-                padding: "6px 12px",
+                padding: "4px 8px",
                 border: "1px solid rgba(207, 157, 123, 0.35)",
                 borderRadius: "3px",
                 background: "rgba(207, 157, 123, 0.08)",
               }}
             >
-              Deep Mode
+              Deep
             </motion.div>
           )}
         </header>
 
         {/* MESSAGES */}
-        <div className="flex-1 overflow-y-auto px-12 py-10">
+        <div className="flex-1 overflow-y-auto px-4 sm:px-8 md:px-12 py-6 md:py-10">
           {messages.length === 0 && !greetingLoading ? (
             <motion.div
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-              className="flex flex-col items-center justify-center h-full text-center"
-              style={{ minHeight: "400px" }}
+              className="flex flex-col items-center justify-center h-full text-center py-8 px-2"
+              style={{ minHeight: "360px" }}
             >
               <p
                 style={{
                   fontFamily: "'Cormorant Garamond', serif",
-                  fontSize: "36px",
+                  fontSize: "clamp(26px, 5vw, 36px)",
                   fontStyle: "italic",
                   fontWeight: 600,
                   color: "var(--sk-text)",
@@ -641,12 +658,12 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
               <p
                 style={{
                   fontFamily: "'Inter', sans-serif",
-                  fontSize: "14px",
+                  fontSize: "13px",
                   color: "var(--sk-text)",
                   opacity: 0.5,
                   maxWidth: "440px",
-                  lineHeight: 1.7,
-                  marginBottom: "40px",
+                  lineHeight: 1.6,
+                  marginBottom: "32px",
                 }}
               >
                 {ai.description}
@@ -658,13 +675,13 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
                     onClick={() => setInput(prompt)}
                     style={{
                       fontFamily: "'Inter', sans-serif",
-                      fontSize: "13px",
+                      fontSize: "12.5px",
                       color: "var(--sk-text)",
                       opacity: 0.6,
                       background: "transparent",
                       border: "1px solid rgba(240, 230, 210, 0.08)",
                       borderRadius: "4px",
-                      padding: "12px 18px",
+                      padding: "10px 14px",
                       cursor: "pointer",
                       textAlign: "left",
                       transition: "all 0.2s",
@@ -689,7 +706,7 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
               animate={{ opacity: 1 }}
               transition={{ duration: 0.4 }}
               className="flex flex-col items-center justify-center h-full"
-              style={{ minHeight: "400px" }}
+              style={{ minHeight: "360px" }}
             >
               <p
                 style={{
@@ -727,7 +744,7 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
               </div>
             </motion.div>
           ) : (
-            <div className="flex flex-col gap-8 max-w-3xl mx-auto">
+            <div className="flex flex-col gap-6 sm:gap-8 max-w-3xl mx-auto">
               {messages.map((msg, i) => {
                 // @ts-expect-error — images is optional extended field
                 const msgImages: string[] | undefined = msg.images;
@@ -745,8 +762,8 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
                           <div
                             style={{
                               width: "100%",
-                              maxWidth: "80%",
-                              padding: "12px 20px",
+                              maxWidth: "90%",
+                              padding: "12px 16px",
                               background: "rgba(207, 157, 123, 0.09)",
                               border: "1px solid rgba(207, 157, 123, 0.35)",
                               borderRadius: "5px",
@@ -764,8 +781,8 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
                                 outline: "none",
                                 resize: "none",
                                 fontFamily: "'Inter', sans-serif",
-                                fontSize: "14px",
-                                lineHeight: 1.65,
+                                fontSize: "13.5px",
+                                lineHeight: 1.6,
                                 color: "var(--sk-text)",
                               }}
                               onKeyDown={(e) => {
@@ -816,8 +833,7 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
                             </div>
                           </div>
                         ) : (
-                          <div className="flex flex-col items-end gap-1.5 max-w-[80%]">
-                            {/* Image thumbnails */}
+                          <div className="flex flex-col items-end gap-1.5 max-w-[90%] sm:max-w-[80%]">
                             {msgImages && msgImages.length > 0 && (
                               <div className="flex gap-2 flex-wrap justify-end">
                                 {msgImages.map((src, idx) => (
@@ -827,8 +843,8 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
                                     src={src}
                                     alt={`attachment ${idx + 1}`}
                                     style={{
-                                      maxWidth: "180px",
-                                      maxHeight: "180px",
+                                      maxWidth: "140px",
+                                      maxHeight: "140px",
                                       borderRadius: "5px",
                                       border: "1px solid rgba(207, 157, 123, 0.25)",
                                       objectFit: "cover",
@@ -840,7 +856,7 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
                             {msg.content && msg.content !== "(image only)" && (
                               <div
                                 style={{
-                                  padding: "12px 20px",
+                                  padding: "10px 16px",
                                   background: "rgba(207, 157, 123, 0.09)",
                                   border: "1px solid rgba(207, 157, 123, 0.18)",
                                   borderRadius: "5px",
@@ -849,8 +865,8 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
                                 <p
                                   style={{
                                     fontFamily: "'Inter', sans-serif",
-                                    fontSize: "14px",
-                                    lineHeight: 1.65,
+                                    fontSize: "13.5px",
+                                    lineHeight: 1.6,
                                     color: "var(--sk-text)",
                                     opacity: 0.95,
                                     whiteSpace: "pre-wrap",
@@ -885,7 +901,7 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
                             textTransform: "uppercase",
                             color: "var(--sk-accent)",
                             opacity: 0.85,
-                            marginBottom: "10px",
+                            marginBottom: "8px",
                           }}
                         >
                           {ai.name} ·
@@ -893,8 +909,8 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
                         <div
                           style={{
                             fontFamily: "'Inter', sans-serif",
-                            fontSize: "15px",
-                            lineHeight: 1.8,
+                            fontSize: "14px",
+                            lineHeight: 1.75,
                             color: "var(--sk-text)",
                             opacity: 0.9,
                             whiteSpace: "pre-wrap",
@@ -908,7 +924,7 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
                               style={{
                                 display: "inline-block",
                                 width: "2px",
-                                height: "15px",
+                                height: "14px",
                                 background: "var(--sk-accent)",
                                 marginLeft: "2px",
                                 verticalAlign: "middle",
@@ -919,7 +935,7 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
                         </div>
                         {!(streaming && i === messages.length - 1) && (
                           <div
-                            className="flex gap-1 mt-3 opacity-0 group-hover:opacity-100"
+                            className="flex gap-1 mt-2.5 opacity-0 group-hover:opacity-100"
                             style={{ transition: "opacity 0.2s" }}
                           >
                             <IconButton label="Copy" onClick={() => handleCopy(msg.content)}>
@@ -946,7 +962,7 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
                       textTransform: "uppercase",
                       color: "var(--sk-accent)",
                       opacity: 0.85,
-                      marginBottom: "10px",
+                      marginBottom: "8px",
                     }}
                   >
                     {mode === "deep" ? `${ai.name} is going deep` : `${ai.name} ·`}
@@ -982,7 +998,7 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
 
         {/* INPUT AREA */}
         <div
-          className="px-12 py-6"
+          className="px-3 sm:px-8 md:px-12 py-3 sm:py-4 md:py-6"
           style={{ borderTop: "1px solid rgba(240, 230, 210, 0.06)" }}
         >
           {/* IMAGE PREVIEW STRIP */}
@@ -993,7 +1009,7 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
                 animate={{ opacity: 1, height: "auto" }}
                 exit={{ opacity: 0, height: 0 }}
                 transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
-                className="max-w-3xl mx-auto mb-3 overflow-hidden"
+                className="max-w-3xl mx-auto mb-2 overflow-hidden"
               >
                 <div className="flex gap-2 flex-wrap">
                   {attachedImages.map((img) => (
@@ -1001,8 +1017,8 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
                       key={img.id}
                       style={{
                         position: "relative",
-                        width: "72px",
-                        height: "72px",
+                        width: "60px",
+                        height: "60px",
                         borderRadius: "5px",
                         border: "1px solid rgba(207, 157, 123, 0.3)",
                         overflow: "hidden",
@@ -1019,15 +1035,15 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
                         onClick={() => removeImage(img.id)}
                         style={{
                           position: "absolute",
-                          top: "3px",
-                          right: "3px",
-                          width: "18px",
-                          height: "18px",
+                          top: "2px",
+                          right: "2px",
+                          width: "16px",
+                          height: "16px",
                           borderRadius: "50%",
                           background: "rgba(12, 21, 25, 0.9)",
                           border: "1px solid rgba(207, 157, 123, 0.4)",
                           color: "var(--sk-text)",
-                          fontSize: "11px",
+                          fontSize: "10px",
                           lineHeight: 1,
                           cursor: "pointer",
                           display: "flex",
@@ -1044,8 +1060,8 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
                   {compressing && (
                     <div
                       style={{
-                        width: "72px",
-                        height: "72px",
+                        width: "60px",
+                        height: "60px",
                         borderRadius: "5px",
                         border: "1px dashed rgba(207, 157, 123, 0.35)",
                         display: "flex",
@@ -1053,13 +1069,13 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
                         justifyContent: "center",
                         fontFamily: "'JetBrains Mono', monospace",
                         fontSize: "8px",
-                        letterSpacing: "0.15em",
+                        letterSpacing: "0.1em",
                         color: "var(--sk-accent)",
                         opacity: 0.7,
                         textTransform: "uppercase",
                       }}
                     >
-                      Processing
+                      Wait
                     </div>
                   )}
                 </div>
@@ -1068,16 +1084,16 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
           </AnimatePresence>
 
           <div
-            className="flex gap-2 items-end max-w-3xl mx-auto"
+            className="flex gap-1.5 sm:gap-2 items-end max-w-3xl mx-auto"
             style={{
               background: "var(--sk-bg-card)",
               border: listening
                 ? "1px solid rgba(207, 157, 123, 0.4)"
                 : "1px solid rgba(240, 230, 210, 0.1)",
               borderRadius: "6px",
-              padding: "14px 12px 14px 18px",
+              padding: "10px 8px 10px 12px",
               transition: "border-color 0.2s",
-              minHeight: "64px",
+              minHeight: "56px",
             }}
           >
             <AnimatePresence mode="wait">
@@ -1094,7 +1110,7 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={handleKeyDown}
-                  placeholder={hasImages ? "Describe or ask about the image..." : `Ask ${ai.name}...`}
+                  placeholder={hasImages ? "Ask about image..." : `Ask ${ai.name}...`}
                   rows={1}
                   style={{
                     flex: 1,
@@ -1103,22 +1119,22 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
                     outline: "none",
                     resize: "none",
                     fontFamily: "'Inter', sans-serif",
-                    fontSize: "14px",
+                    fontSize: "13.5px",
                     color: "var(--sk-text)",
-                    lineHeight: 1.65,
-                    maxHeight: "140px",
+                    lineHeight: 1.5,
+                    maxHeight: "120px",
                     overflowY: "auto",
                   }}
                   onInput={(e) => {
                     const el = e.currentTarget;
                     el.style.height = "auto";
-                    el.style.height = Math.min(el.scrollHeight, 140) + "px";
+                    el.style.height = Math.min(el.scrollHeight, 120) + "px";
                   }}
                 />
               )}
             </AnimatePresence>
 
-            {/* PAPERCLIP — real file picker now */}
+            {/* PAPERCLIP */}
             <button
               onClick={handleFilePick}
               disabled={compressing}
@@ -1129,8 +1145,8 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
               }
               style={{
                 flexShrink: 0,
-                width: "36px",
-                height: "36px",
+                width: "32px",
+                height: "32px",
                 borderRadius: "5px",
                 border:
                   attachedImages.length > 0
@@ -1147,15 +1163,6 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
                 transition: "all 0.2s",
                 opacity: compressing ? 0.5 : 1,
               }}
-              onMouseEnter={(e) => {
-                if (!compressing) e.currentTarget.style.borderColor = "rgba(240, 230, 210, 0.25)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor =
-                  attachedImages.length > 0
-                    ? "rgba(207, 157, 123, 0.4)"
-                    : "rgba(240, 230, 210, 0.12)";
-              }}
             >
               <PaperclipIcon />
             </button>
@@ -1166,36 +1173,37 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
               title={mode === "quick" ? "Switch to Deep Mode" : "Switch to Quick Mode"}
               style={{
                 flexShrink: 0,
-                height: "36px",
-                padding: "0 10px",
+                height: "32px",
+                padding: "0 8px",
                 borderRadius: "5px",
                 border: mode === "deep" ? "1px solid var(--sk-accent)" : "1px solid rgba(240, 230, 210, 0.12)",
                 background: mode === "deep" ? "rgba(207, 157, 123, 0.15)" : "transparent",
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
-                gap: "6px",
+                gap: "4px",
                 transition: "all 0.2s",
                 fontFamily: "'JetBrains Mono', monospace",
-                fontSize: "9px",
-                letterSpacing: "0.14em",
+                fontSize: "8.5px",
+                letterSpacing: "0.12em",
                 textTransform: "uppercase",
                 color: mode === "deep" ? "var(--sk-accent)" : "var(--sk-text)",
                 opacity: mode === "deep" ? 1 : 0.6,
               }}
             >
               {mode === "deep" ? <DeepIcon /> : <QuickIcon />}
-              {mode === "deep" ? "Deep" : "Quick"}
+              <span className="hidden sm:inline">{mode === "deep" ? "Deep" : "Quick"}</span>
             </button>
 
+            {/* MIC */}
             {voiceSupported && (
               <button
                 onClick={toggleVoice}
                 title={listening ? "Stop recording" : "Voice input"}
                 style={{
                   flexShrink: 0,
-                  width: "36px",
-                  height: "36px",
+                  width: "32px",
+                  height: "32px",
                   borderRadius: "5px",
                   border: listening ? "1px solid var(--sk-accent)" : "1px solid rgba(240, 230, 210, 0.12)",
                   background: listening ? "rgba(207, 157, 123, 0.15)" : "transparent",
@@ -1213,6 +1221,7 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
               </button>
             )}
 
+            {/* SEND */}
             <motion.button
               onClick={handleSend}
               disabled={!canSend}
@@ -1225,8 +1234,8 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
               transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
               style={{
                 flexShrink: 0,
-                width: "36px",
-                height: "36px",
+                width: "32px",
+                height: "32px",
                 borderRadius: "5px",
                 border: canSend ? "1px solid var(--sk-accent)" : "1px solid rgba(240, 230, 210, 0.08)",
                 background: canSend ? "var(--sk-accent)" : "transparent",
@@ -1234,7 +1243,7 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                boxShadow: canSend ? "0 0 14px rgba(207, 157, 123, 0.4)" : "none",
+                boxShadow: canSend ? "0 0 12px rgba(207, 157, 123, 0.4)" : "none",
                 transition: "background 0.2s, border 0.2s, box-shadow 0.2s",
               }}
             >
@@ -1242,7 +1251,7 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
                 <span
                   style={{
                     fontFamily: "'JetBrains Mono', monospace",
-                    fontSize: "12px",
+                    fontSize: "11px",
                     color: canSend ? "var(--sk-bg)" : "var(--sk-text)",
                     opacity: 0.7,
                   }}
@@ -1258,19 +1267,20 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
           <p
             style={{
               fontFamily: "'JetBrains Mono', monospace",
-              fontSize: "9px",
-              letterSpacing: "0.12em",
+              fontSize: "8.5px",
+              letterSpacing: "0.1em",
               textTransform: "uppercase",
               color: "var(--sk-text)",
               opacity: 0.25,
-              marginTop: "10px",
+              marginTop: "8px",
               textAlign: "center",
             }}
           >
-            Enter to send · Shift+Enter for new line · Attach images{voiceSupported ? " · Mic to speak" : ""} · Toggle Deep for detailed answers
+            Enter to send · Deep mode for detailed answers
           </p>
         </div>
 
+        {/* TOAST */}
         <AnimatePresence>
           {toast && (
             <motion.div
@@ -1280,15 +1290,15 @@ const StudioChat = forwardRef<StudioChatHandle, StudioChatProps>(
               transition={{ duration: 0.25 }}
               style={{
                 position: "absolute",
-                bottom: "110px",
+                bottom: "90px",
                 left: "50%",
                 transform: "translateX(-50%)",
-                padding: "8px 16px",
+                padding: "6px 14px",
                 background: "var(--sk-bg-card)",
                 border: "1px solid rgba(207, 157, 123, 0.4)",
                 borderRadius: "4px",
                 fontFamily: "'JetBrains Mono', monospace",
-                fontSize: "10px",
+                fontSize: "9px",
                 letterSpacing: "0.14em",
                 textTransform: "uppercase",
                 color: "var(--sk-accent)",
@@ -1326,8 +1336,8 @@ function IconButton({
       onClick={onClick}
       title={label}
       style={{
-        width: "26px",
-        height: "26px",
+        width: "24px",
+        height: "24px",
         borderRadius: "4px",
         border: "1px solid transparent",
         background: "transparent",
@@ -1351,9 +1361,19 @@ function IconButton({
   );
 }
 
+function MenuIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="3" y1="12" x2="21" y2="12" />
+      <line x1="3" y1="6" x2="21" y2="6" />
+      <line x1="3" y1="18" x2="21" y2="18" />
+    </svg>
+  );
+}
+
 function CopyIcon() {
   return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--sk-text)", opacity: 0.6 }}>
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--sk-text)", opacity: 0.6 }}>
       <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
       <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
     </svg>
@@ -1362,7 +1382,7 @@ function CopyIcon() {
 
 function EditIcon() {
   return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--sk-text)", opacity: 0.6 }}>
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--sk-text)", opacity: 0.6 }}>
       <path d="M12 20h9" />
       <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
     </svg>
@@ -1371,7 +1391,7 @@ function EditIcon() {
 
 function SaveIcon() {
   return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--sk-text)", opacity: 0.6 }}>
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--sk-text)", opacity: 0.6 }}>
       <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
       <polyline points="17 21 17 13 7 13 7 21" />
       <polyline points="7 3 7 8 15 8" />
@@ -1381,7 +1401,7 @@ function SaveIcon() {
 
 function ArrowIcon({ color }: { color: string }) {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
       <line x1="5" y1="12" x2="19" y2="12" />
       <polyline points="12 5 19 12 12 19" />
     </svg>
@@ -1390,7 +1410,7 @@ function ArrowIcon({ color }: { color: string }) {
 
 function MicIcon({ color, opacity }: { color: string; opacity: number }) {
   return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ opacity }}>
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ opacity }}>
       <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
       <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
       <line x1="12" y1="19" x2="12" y2="23" />
@@ -1401,7 +1421,7 @@ function MicIcon({ color, opacity }: { color: string; opacity: number }) {
 
 function PaperclipIcon() {
   return (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--sk-text)", opacity: 0.6 }}>
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ color: "var(--sk-text)", opacity: 0.6 }}>
       <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
     </svg>
   );
@@ -1409,7 +1429,7 @@ function PaperclipIcon() {
 
 function QuickIcon() {
   return (
-    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
     </svg>
   );
@@ -1417,7 +1437,7 @@ function QuickIcon() {
 
 function DeepIcon() {
   return (
-    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="11" cy="11" r="8" />
       <line x1="21" y1="21" x2="16.65" y2="16.65" />
     </svg>
