@@ -13,12 +13,10 @@ import {
   Edge,
   Node,
   Panel,
-  useReactFlow,
   ReactFlowProvider,
 } from "@xyflow/react";
 // @ts-ignore
 import "@xyflow/react/dist/style.css";
-import { toPng } from "html-to-image";
 import {
   Download,
   Sparkles,
@@ -29,11 +27,9 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
-// Flexible module imports to safely resolve export variations
 import * as CustomNodeModule from "./custom-node";
 import * as ThemesModule from "@/data/themes";
 
-// Safely extract CustomNode regardless of default vs named export
 const CustomNodeComp =
   (CustomNodeModule as any).CustomNode ||
   (CustomNodeModule as any).default ||
@@ -43,7 +39,6 @@ const nodeTypes = {
   custom: CustomNodeComp,
 };
 
-// Extract theme map safely
 const themeMap: Record<string, any> =
   (ThemesModule as any).themes ||
   (ThemesModule as any).THEMES ||
@@ -51,7 +46,6 @@ const themeMap: Record<string, any> =
   (ThemesModule as any).default ||
   {};
 
-// Universal theme normalizer
 function parseTheme(raw: any) {
   if (!raw) {
     return {
@@ -91,7 +85,6 @@ function SpatialCanvasInner({ themeKey = "architect-brass" }: { themeKey?: strin
   >([]);
   const [isAiLoading, setIsAiLoading] = useState(false);
 
-  // Load init payload from sessionStorage
   useEffect(() => {
     const rawInit = typeof window !== "undefined" ? sessionStorage.getItem("sidekick_canvas_init") : null;
     let themeObj = parseTheme(themeMap[themeKey] || themeKey);
@@ -152,7 +145,6 @@ function SpatialCanvasInner({ themeKey = "architect-brass" }: { themeKey?: strin
     }
   }, [themeKey, setNodes, setEdges]);
 
-  // Strictly typed edge connection handler
   const onConnect = useCallback(
     (params: Connection) => {
       const newEdge: Edge = {
@@ -169,7 +161,6 @@ function SpatialCanvasInner({ themeKey = "architect-brass" }: { themeKey?: strin
     [setEdges, activeTheme]
   );
 
-  // Add new block manually
   const handleAddNode = () => {
     const newId = `node-${Date.now()}`;
     const newNode: Node = {
@@ -186,32 +177,33 @@ function SpatialCanvasInner({ themeKey = "architect-brass" }: { themeKey?: strin
     setNodes((nds) => [...nds, newNode]);
   };
 
-  // Export Board as PNG Image
-  const handleExportPng = () => {
+  // Browser-only Dynamic Import for PNG Export
+  const handleExportPng = async () => {
+    if (typeof window === "undefined") return;
     const viewportEl = document.querySelector(".react-flow__viewport") as HTMLElement;
     if (!viewportEl) return;
 
-    toPng(viewportEl, {
-      backgroundColor: activeTheme?.bg || "#0C1519",
-      width: viewportEl.scrollWidth + 100,
-      height: viewportEl.scrollHeight + 100,
-      style: {
-        width: "100%",
-        height: "100%",
-      },
-    })
-      .then((dataUrl) => {
-        const link = document.createElement("a");
-        link.download = `sidekick-canvas-${Date.now()}.png`;
-        link.href = dataUrl;
-        link.click();
-      })
-      .catch((err) => {
-        console.error("PNG export error:", err);
+    try {
+      const { toPng } = await import("html-to-image");
+      const dataUrl = await toPng(viewportEl, {
+        backgroundColor: activeTheme?.bg || "#0C1519",
+        width: viewportEl.scrollWidth + 100,
+        height: viewportEl.scrollHeight + 100,
+        style: {
+          width: "100%",
+          height: "100%",
+        },
       });
+
+      const link = document.createElement("a");
+      link.download = `sidekick-canvas-${Date.now()}.png`;
+      link.href = dataUrl;
+      link.click();
+    } catch (err) {
+      console.error("PNG export error:", err);
+    }
   };
 
-  // AI Drawer Chat Stream
   const handleSendAiMessage = async () => {
     if (!aiInput.trim() || isAiLoading) return;
 
@@ -286,7 +278,6 @@ function SpatialCanvasInner({ themeKey = "architect-brass" }: { themeKey?: strin
           className="!bg-[#131F24] !border-[#CF9D7B]/20"
         />
 
-        {/* TOP HUD TOOLBAR */}
         <Panel position="top-left" className="m-6 flex items-center gap-3">
           <Link
             href="/canvas"
@@ -315,7 +306,6 @@ function SpatialCanvasInner({ themeKey = "architect-brass" }: { themeKey?: strin
           </button>
         </Panel>
 
-        {/* TOP RIGHT AI DRAWER TRIGGER */}
         <Panel position="top-right" className="m-6">
           <button
             onClick={() => setIsDrawerOpen(true)}
@@ -327,7 +317,6 @@ function SpatialCanvasInner({ themeKey = "architect-brass" }: { themeKey?: strin
         </Panel>
       </ReactFlow>
 
-      {/* ARCHITECT AI SIDE DRAWER */}
       {isDrawerOpen && (
         <div className="fixed inset-y-0 right-0 w-full sm:w-[420px] bg-[#0C1519]/95 border-l border-[#CF9D7B]/20 z-50 flex flex-col justify-between backdrop-blur-2xl shadow-2xl p-6">
           <div>
