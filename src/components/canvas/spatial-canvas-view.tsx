@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import {
   ReactFlow,
   MiniMap,
@@ -12,202 +12,387 @@ import {
   Connection,
   Edge,
   Node,
-  BackgroundVariant
+  Panel,
+  useReactFlow,
+  ReactFlowProvider,
 } from "@xyflow/react";
-// @ts-expect-error - xyflow CSS import
+// @ts-ignore
 import "@xyflow/react/dist/style.css";
-import { CanvasTheme, CanvasType } from "@/types/canvas";
-import { CustomCanvasNode } from "./custom-node";
-import { motion, AnimatePresence } from "framer-motion";
-import { 
-  Sparkles, 
-  Download, 
-  ZoomIn, 
-  ZoomOut, 
-  Maximize2, 
-  Bot, 
-  Send, 
+import { toPng } from "html-to-image";
+import {
+  Download,
+  Sparkles,
+  Plus,
+  Send,
   X,
-  Layers
+  ArrowLeft,
 } from "lucide-react";
+import Link from "next/link";
 
-interface SpatialCanvasViewProps {
-  initialNodes: Node[];
-  initialEdges: Edge[];
-  theme: CanvasTheme;
-  canvasType: CanvasType;
+// Flexible module imports to safely resolve export variations
+import * as CustomNodeModule from "./custom-node";
+import * as ThemesModule from "@/data/themes";
+
+// Safely extract CustomNode regardless of default vs named export
+const CustomNodeComp =
+  (CustomNodeModule as any).CustomNode ||
+  (CustomNodeModule as any).default ||
+  CustomNodeModule;
+
+const nodeTypes = {
+  custom: CustomNodeComp,
+};
+
+// Extract theme map safely
+const themeMap: Record<string, any> =
+  (ThemesModule as any).themes ||
+  (ThemesModule as any).THEMES ||
+  (ThemesModule as any).themeRegistry ||
+  (ThemesModule as any).default ||
+  {};
+
+// Universal theme normalizer
+function parseTheme(raw: any) {
+  if (!raw) {
+    return {
+      id: "architect-brass",
+      name: "Architect Brass",
+      bg: "#0C1519",
+      cardBg: "#131F24",
+      border: "rgba(207, 157, 123, 0.25)",
+      text: "#F0E6D2",
+      subtext: "rgba(240, 230, 210, 0.6)",
+      accent: "#CF9D7B",
+    };
+  }
+
+  return {
+    id: raw.id || "architect-brass",
+    name: raw.name || "Architect Brass",
+    bg: raw.bg || raw.colors?.bg || "#0C1519",
+    cardBg: raw.cardBg || raw.surface || raw.colors?.cardBg || "#131F24",
+    border: raw.border || raw.colors?.border || "rgba(207, 157, 123, 0.25)",
+    text: raw.text || raw.colors?.text || "#F0E6D2",
+    subtext: raw.subtext || raw.textMuted || raw.colors?.subtext || "rgba(240, 230, 210, 0.6)",
+    accent: raw.accent || raw.colors?.accent || "#CF9D7B",
+  };
 }
 
-export function SpatialCanvasView({
-  initialNodes,
-  initialEdges,
-  theme,
-  canvasType
-}: SpatialCanvasViewProps) {
-  // Register custom node type
-  const nodeTypes = useMemo(() => ({ custom: CustomCanvasNode }), []);
+function SpatialCanvasInner({ themeKey = "architect-brass" }: { themeKey?: string }) {
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
+  const [activeTheme, setActiveTheme] = useState<any>(null);
 
-  // Inject theme data into initial nodes
-  const themedNodes = useMemo(() => {
-    return initialNodes.map((node) => ({
-      ...node,
-      type: "custom",
-      data: {
-        ...node.data,
-        theme
+  // AI Drawer State
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [aiInput, setAiInput] = useState("");
+  const [aiMessages, setAiMessages] = useState<
+    { role: "user" | "assistant"; content: string }[]
+  >([]);
+  const [isAiLoading, setIsAiLoading] = useState(false);
+
+  // Load init payload from sessionStorage
+  useEffect(() => {
+    const rawInit = typeof window !== "undefined" ? sessionStorage.getItem("sidekick_canvas_init") : null;
+    let themeObj = parseTheme(themeMap[themeKey] || themeKey);
+    setActiveTheme(themeObj);
+
+    if (rawInit) {
+      try {
+        const parsed = JSON.parse(rawInit);
+        if (parsed.nodes && Array.isArray(parsed.nodes)) {
+          const formattedNodes: Node[] = parsed.nodes.map((n: any, idx: number) => {
+            const x = (idx % 3) * 350 + 100;
+            const y = Math.floor(idx / 3) * 250 + 100;
+
+            return {
+              id: n.id || `node-${idx + 1}`,
+              type: "custom",
+              position: { x, y },
+              data: {
+                label: n.label || `Node ${idx + 1}`,
+                description: n.desc || n.description || "",
+                category: n.category || `PHASE 0${idx + 1}`,
+                theme: themeObj,
+              },
+            };
+          });
+
+          const formattedEdges: Edge[] = [];
+          for (let i = 0; i < formattedNodes.length - 1; i++) {
+            formattedEdges.push({
+              id: `e-${i}-${i + 1}`,
+              source: formattedNodes[i].id,
+              target: formattedNodes[i + 1].id,
+              animated: true,
+              style: { stroke: themeObj.accent || "#CF9D7B", strokeWidth: 2 },
+            });
+          }
+
+          setNodes(formattedNodes);
+          setEdges(formattedEdges);
+        }
+      } catch (err) {
+        console.error("Failed to parse canvas init payload:", err);
       }
-    }));
-  }, [initialNodes, theme]);
-
-  const [nodes, setNodes, onNodesChange] = useNodesState(themedNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
-
-  // Inspector Sidebar & AI Side-Chat
-  const [selectedNode, setSelectedNode] = useState<Node | null>(null);
-  const [isAiPanelOpen, setIsAiPanelOpen] = useState(false);
-  const [aiPrompt, setAiPrompt] = useState("");
-  const [aiHistory, setAiHistory] = useState<Array<{ role: "user" | "architect"; text: string }>>([
-    {
-      role: "architect",
-      text: "Spatial map initialized. Select any node to inspect parameters or prompt me to restructure execution branches."
+    } else {
+      setNodes([
+        {
+          id: "1",
+          type: "custom",
+          position: { x: 250, y: 150 },
+          data: {
+            label: "Core Strategic Vision",
+            description: "Main focal point. Double click to edit or use hover toolbar.",
+            category: "ROOT NODE",
+            theme: themeObj,
+          },
+        },
+      ]);
     }
-  ]);
+  }, [themeKey, setNodes, setEdges]);
 
+  // Strictly typed edge connection handler
   const onConnect = useCallback(
-    (params: Connection) => setEdges((eds) => addEdge({ ...params, style: { stroke: theme.edgeColor, strokeWidth: 2 } }, eds)),
-    [setEdges, theme.edgeColor]
+    (params: Connection) => {
+      const newEdge: Edge = {
+        id: `e-${params.source}-${params.target}-${Date.now()}`,
+        source: params.source,
+        target: params.target,
+        sourceHandle: params.sourceHandle,
+        targetHandle: params.targetHandle,
+        animated: true,
+        style: { stroke: activeTheme?.accent || "#CF9D7B", strokeWidth: 2 },
+      };
+      setEdges((eds) => addEdge(newEdge, eds));
+    },
+    [setEdges, activeTheme]
   );
 
-  const onNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
-    setSelectedNode(node);
-  }, []);
-
-  const handleSendAiCommand = () => {
-    if (!aiPrompt.trim()) return;
-    const userMsg = aiPrompt;
-    setAiPrompt("");
-    
-    setAiHistory((prev) => [
-      ...prev,
-      { role: "user", text: userMsg },
-      {
-        role: "architect",
-        text: `Command acknowledged: "${userMsg}". Restructuring node topology to optimize structural flow.`
-      }
-    ]);
+  // Add new block manually
+  const handleAddNode = () => {
+    const newId = `node-${Date.now()}`;
+    const newNode: Node = {
+      id: newId,
+      type: "custom",
+      position: { x: Math.random() * 400 + 100, y: Math.random() * 300 + 100 },
+      data: {
+        label: "New Strategic Node",
+        description: "Click to add action items or descriptions.",
+        category: "CUSTOM BLOCK",
+        theme: activeTheme,
+      },
+    };
+    setNodes((nds) => [...nds, newNode]);
   };
+
+  // Export Board as PNG Image
+  const handleExportPng = () => {
+    const viewportEl = document.querySelector(".react-flow__viewport") as HTMLElement;
+    if (!viewportEl) return;
+
+    toPng(viewportEl, {
+      backgroundColor: activeTheme?.bg || "#0C1519",
+      width: viewportEl.scrollWidth + 100,
+      height: viewportEl.scrollHeight + 100,
+      style: {
+        width: "100%",
+        height: "100%",
+      },
+    })
+      .then((dataUrl) => {
+        const link = document.createElement("a");
+        link.download = `sidekick-canvas-${Date.now()}.png`;
+        link.href = dataUrl;
+        link.click();
+      })
+      .catch((err) => {
+        console.error("PNG export error:", err);
+      });
+  };
+
+  // AI Drawer Chat Stream
+  const handleSendAiMessage = async () => {
+    if (!aiInput.trim() || isAiLoading) return;
+
+    const userText = aiInput;
+    setAiInput("");
+    setAiMessages((prev) => [...prev, { role: "user", content: userText }]);
+    setIsAiLoading(true);
+
+    try {
+      const response = await fetch("/api/ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: userText,
+          context: "canvas",
+          messages: aiMessages,
+        }),
+      });
+
+      if (!response.ok) throw new Error("AI stream request failed");
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      let assistantText = "";
+
+      setAiMessages((prev) => [...prev, { role: "assistant", content: "" }]);
+
+      while (reader) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        assistantText += chunk;
+
+        setAiMessages((prev) => {
+          const updated = [...prev];
+          updated[updated.length - 1] = { role: "assistant", content: assistantText };
+          return updated;
+        });
+      }
+    } catch (err) {
+      console.error("AI side drawer error:", err);
+      setAiMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: "An error occurred while streaming AI guidance." },
+      ]);
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
+
+  if (!activeTheme) return <div className="min-h-screen bg-[#0C1519]" />;
 
   return (
     <div
-      className="relative w-full h-screen overflow-hidden font-sans"
-      style={{ background: theme.canvasBackground }}
+      className="w-full h-screen relative overflow-hidden font-sans"
+      style={{ backgroundColor: activeTheme.bg, color: activeTheme.text }}
     >
-      {/* ReactFlow Board Canvas */}
       <ReactFlow
         nodes={nodes}
         edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
-        onNodeClick={onNodeClick}
         nodeTypes={nodeTypes}
         fitView
-        className="touch-none"
       >
-        <Background
-          variant={BackgroundVariant.Dots}
-          gap={24}
-          size={1.5}
-          color={theme.gridColor || "rgba(255,255,255,0.05)"}
-        />
-        <Controls className="!bg-[#0C1519]/90 !border-white/10 !fill-[#F0E6D2] !rounded-xl !overflow-hidden !shadow-2xl" />
+        <Background color={activeTheme.accent} gap={24} size={1} />
+        <Controls className="!bg-[#131F24] !border-[#CF9D7B]/20 !text-[#F0E6D2] fill-current" />
         <MiniMap
-          nodeStrokeColor={theme.borderColor}
-          nodeColor={theme.cardBackground}
+          nodeColor={() => activeTheme.accent}
           maskColor="rgba(12, 21, 25, 0.8)"
-          className="!bg-[#0C1519]/90 !border-white/10 !rounded-xl !overflow-hidden"
+          className="!bg-[#131F24] !border-[#CF9D7B]/20"
         />
+
+        {/* TOP HUD TOOLBAR */}
+        <Panel position="top-left" className="m-6 flex items-center gap-3">
+          <Link
+            href="/canvas"
+            className="p-3 rounded-xl bg-[#131F24] border border-[#CF9D7B]/25 hover:border-[#CF9D7B] text-[#F0E6D2] transition-all flex items-center gap-2 font-mono text-xs shadow-lg"
+          >
+            <ArrowLeft className="w-4 h-4 text-[#CF9D7B]" />
+            <span>EXIT CANVAS</span>
+          </Link>
+
+          <div className="h-6 w-[1px] bg-[#CF9D7B]/20" />
+
+          <button
+            onClick={handleAddNode}
+            className="px-4 py-3 rounded-xl bg-[#131F24] border border-[#CF9D7B]/25 hover:border-[#CF9D7B] text-[#F0E6D2] transition-all flex items-center gap-2 font-mono text-xs shadow-lg"
+          >
+            <Plus className="w-4 h-4 text-[#CF9D7B]" />
+            <span>ADD BLOCK</span>
+          </button>
+
+          <button
+            onClick={handleExportPng}
+            className="px-4 py-3 rounded-xl bg-[#CF9D7B] text-[#0C1519] font-mono text-xs font-bold uppercase tracking-wider hover:bg-[#d8a887] transition-all flex items-center gap-2 shadow-[0_0_20px_rgba(207,157,123,0.25)]"
+          >
+            <Download className="w-4 h-4" />
+            <span>EXPORT PNG</span>
+          </button>
+        </Panel>
+
+        {/* TOP RIGHT AI DRAWER TRIGGER */}
+        <Panel position="top-right" className="m-6">
+          <button
+            onClick={() => setIsDrawerOpen(true)}
+            className="px-4 py-3 rounded-xl bg-[#131F24] border border-[#CF9D7B]/30 hover:border-[#CF9D7B] text-[#CF9D7B] font-mono text-xs flex items-center gap-2 shadow-xl backdrop-blur-md"
+          >
+            <Sparkles className="w-4 h-4" />
+            <span>ARCHITECT SPARRING</span>
+          </button>
+        </Panel>
       </ReactFlow>
 
-      {/* Floating Action HUD (Top Right) */}
-      <div className="absolute top-4 right-6 z-20 flex items-center gap-3">
-        <button
-          onClick={() => setIsAiPanelOpen(!isAiPanelOpen)}
-          className="px-4 py-2 rounded-xl bg-[#142026]/90 border border-[#CF9D7B]/40 hover:border-[#CF9D7B] text-xs font-mono text-[#CF9D7B] transition-all backdrop-blur-md flex items-center gap-2 shadow-lg"
-        >
-          <Bot className="w-4 h-4" />
-          <span>Architect Assist</span>
-        </button>
-      </div>
-
-      {/* Right AI Consigliere Drawer */}
-      <AnimatePresence>
-        {isAiPanelOpen && (
-          <motion.div
-            initial={{ x: 360, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: 360, opacity: 0 }}
-            transition={{ type: "spring", damping: 25, stiffness: 200 }}
-            className="absolute top-0 right-0 z-30 w-80 h-full bg-[#0E171B]/95 border-l border-white/10 p-5 flex flex-col justify-between backdrop-blur-2xl shadow-2xl"
-          >
-            <div>
-              <div className="flex items-center justify-between pb-4 mb-4 border-b border-white/10">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-[#CF9D7B]" />
-                  <span className="text-xs font-mono font-bold text-[#F0E6D2] tracking-wider uppercase">
-                    Architect Spatial Copilot
-                  </span>
-                </div>
-                <button
-                  onClick={() => setIsAiPanelOpen(false)}
-                  className="p-1 rounded text-white/40 hover:text-white"
-                >
-                  <X className="w-4 h-4" />
-                </button>
+      {/* ARCHITECT AI SIDE DRAWER */}
+      {isDrawerOpen && (
+        <div className="fixed inset-y-0 right-0 w-full sm:w-[420px] bg-[#0C1519]/95 border-l border-[#CF9D7B]/20 z-50 flex flex-col justify-between backdrop-blur-2xl shadow-2xl p-6">
+          <div>
+            <div className="flex items-center justify-between pb-4 border-b border-[#CF9D7B]/15">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-[#CF9D7B]" />
+                <span className="font-serif italic text-lg text-[#F0E6D2]">The Architect</span>
               </div>
+              <button
+                onClick={() => setIsDrawerOpen(false)}
+                className="text-[#F0E6D2]/50 hover:text-[#CF9D7B]"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
 
-              {/* Chat Log */}
-              <div className="space-y-3 max-h-[calc(100vh-180px)] overflow-y-auto pr-1 custom-scrollbar">
-                {aiHistory.map((msg, i) => (
+            <div className="my-4 space-y-4 max-h-[calc(100vh-220px)] overflow-y-auto pr-2 custom-scrollbar">
+              {aiMessages.length === 0 ? (
+                <div className="text-xs font-sans text-[#F0E6D2]/50 italic text-center py-8">
+                  Ask The Architect to review your node hierarchy, suggest sub-branches, or sharpen your strategy.
+                </div>
+              ) : (
+                aiMessages.map((msg, idx) => (
                   <div
-                    key={i}
-                    className={`p-3 rounded-xl text-xs font-sans leading-relaxed ${
-                      msg.role === "architect"
-                        ? "bg-[#16242B] border border-white/5 text-[#F0E6D2]"
-                        : "bg-[#CF9D7B]/10 border border-[#CF9D7B]/30 text-[#CF9D7B] ml-4"
+                    key={idx}
+                    className={`p-3.5 rounded-xl text-xs font-sans leading-relaxed ${
+                      msg.role === "user"
+                        ? "bg-[#CF9D7B]/15 text-[#F0E6D2] border border-[#CF9D7B]/30 ml-6"
+                        : "bg-[#131F24] text-[#F0E6D2]/90 border border-[#F0E6D2]/10 mr-4"
                     }`}
                   >
-                    <span className="block text-[9px] font-mono text-white/30 uppercase mb-1">
-                      {msg.role === "architect" ? "The Architect" : "You"}
-                    </span>
-                    {msg.text}
+                    {msg.content || "..."}
                   </div>
-                ))}
-              </div>
+                ))
+              )}
             </div>
+          </div>
 
-            {/* Prompt Input */}
-            <div className="pt-3 border-t border-white/10">
-              <div className="relative">
-                <input
-                  type="text"
-                  value={aiPrompt}
-                  onChange={(e) => setAiPrompt(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleSendAiCommand()}
-                  placeholder="e.g. Expand branch 2 into 3 tactical sub-nodes..."
-                  className="w-full bg-[#060A0C] border border-white/10 rounded-xl pl-3 pr-10 py-2.5 text-xs text-[#F0E6D2] placeholder-white/30 focus:outline-none focus:border-[#CF9D7B]"
-                />
-                <button
-                  onClick={handleSendAiCommand}
-                  className="absolute right-2 top-2 p-1 rounded-lg bg-[#CF9D7B] text-[#0C1519] hover:bg-[#d8ab8c] transition-all"
-                >
-                  <Send className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+          <div className="pt-3 border-t border-[#CF9D7B]/15 flex items-center gap-2">
+            <input
+              type="text"
+              value={aiInput}
+              onChange={(e) => setAiInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSendAiMessage()}
+              placeholder="Ask for feedback on this canvas..."
+              className="flex-1 bg-[#131F24] border border-[#CF9D7B]/25 rounded-xl px-4 py-3 text-xs text-[#F0E6D2] placeholder-[#F0E6D2]/30 focus:outline-none focus:border-[#CF9D7B]"
+            />
+            <button
+              onClick={handleSendAiMessage}
+              disabled={isAiLoading}
+              className="p-3 bg-[#CF9D7B] text-[#0C1519] rounded-xl font-bold hover:bg-[#d8a887] transition-all disabled:opacity-40"
+            >
+              <Send className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+export default function SpatialCanvasView(props: { themeKey?: string }) {
+  return (
+    <ReactFlowProvider>
+      <SpatialCanvasInner {...props} />
+    </ReactFlowProvider>
   );
 }
