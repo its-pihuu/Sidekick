@@ -12,6 +12,22 @@ import { parisParchment } from "./paris-parchment";
 import { swissBrutalist } from "./swiss-brutalist";
 import { botanicalSage } from "./botanical-sage";
 
+export const CANVAS_THEMES = [
+  architectBrass,
+  gammaObsidian,
+  oasisEmerald,
+  volcanoBasalt,
+  cyberShibuya,
+  midnightSapphire,
+  emeraldVault,
+  roseQuartz,
+  sunsetCrimson,
+  nordicFog,
+  parisParchment,
+  swissBrutalist,
+  botanicalSage,
+];
+
 export const themes: Record<string, any> = {
   "architect-brass": architectBrass,
   "gamma-obsidian": gammaObsidian,
@@ -30,4 +46,11 @@ export const themes: Record<string, any> = {
 
 export const THEMES = themes;
 export const themeRegistry = themes;
-export default themes;
+
+export function parseTheme(raw: any) {
+  if (typeof raw === "string" && themes[raw]) return themes[raw];
+  if (raw && typeof raw === "object") return raw;
+  return architectBrass;
+}
+
+export default CANVAS_THEMES;

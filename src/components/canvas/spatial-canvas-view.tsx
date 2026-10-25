@@ -27,57 +27,18 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
-import * as CustomNodeModule from "./custom-node";
-import * as ThemesModule from "@/data/themes";
-
-const CustomNodeComp =
-  (CustomNodeModule as any).CustomNode ||
-  (CustomNodeModule as any).default ||
-  CustomNodeModule;
+import CustomNode from "./custom-node";
+import { parseTheme, themes } from "@/data/themes";
 
 const nodeTypes = {
-  custom: CustomNodeComp,
+  custom: CustomNode,
 };
-
-const themeMap: Record<string, any> =
-  (ThemesModule as any).themes ||
-  (ThemesModule as any).THEMES ||
-  (ThemesModule as any).themeRegistry ||
-  (ThemesModule as any).default ||
-  {};
-
-function parseTheme(raw: any) {
-  if (!raw) {
-    return {
-      id: "architect-brass",
-      name: "Architect Brass",
-      bg: "#0C1519",
-      cardBg: "#131F24",
-      border: "rgba(207, 157, 123, 0.25)",
-      text: "#F0E6D2",
-      subtext: "rgba(240, 230, 210, 0.6)",
-      accent: "#CF9D7B",
-    };
-  }
-
-  return {
-    id: raw.id || "architect-brass",
-    name: raw.name || "Architect Brass",
-    bg: raw.bg || raw.colors?.bg || "#0C1519",
-    cardBg: raw.cardBg || raw.surface || raw.colors?.cardBg || "#131F24",
-    border: raw.border || raw.colors?.border || "rgba(207, 157, 123, 0.25)",
-    text: raw.text || raw.colors?.text || "#F0E6D2",
-    subtext: raw.subtext || raw.textMuted || raw.colors?.subtext || "rgba(240, 230, 210, 0.6)",
-    accent: raw.accent || raw.colors?.accent || "#CF9D7B",
-  };
-}
 
 function SpatialCanvasInner({ themeKey = "architect-brass" }: { themeKey?: string }) {
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [activeTheme, setActiveTheme] = useState<any>(null);
 
-  // AI Drawer State
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [aiInput, setAiInput] = useState("");
   const [aiMessages, setAiMessages] = useState<
@@ -87,7 +48,7 @@ function SpatialCanvasInner({ themeKey = "architect-brass" }: { themeKey?: strin
 
   useEffect(() => {
     const rawInit = typeof window !== "undefined" ? sessionStorage.getItem("sidekick_canvas_init") : null;
-    let themeObj = parseTheme(themeMap[themeKey] || themeKey);
+    let themeObj = parseTheme(themes[themeKey] || themeKey);
     setActiveTheme(themeObj);
 
     if (rawInit) {
@@ -177,7 +138,6 @@ function SpatialCanvasInner({ themeKey = "architect-brass" }: { themeKey?: strin
     setNodes((nds) => [...nds, newNode]);
   };
 
-  // Browser-only Dynamic Import for PNG Export
   const handleExportPng = async () => {
     if (typeof window === "undefined") return;
     const viewportEl = document.querySelector(".react-flow__viewport") as HTMLElement;
@@ -378,10 +338,12 @@ function SpatialCanvasInner({ themeKey = "architect-brass" }: { themeKey?: strin
   );
 }
 
-export default function SpatialCanvasView(props: { themeKey?: string }) {
+export function SpatialCanvasView(props: { themeKey?: string }) {
   return (
     <ReactFlowProvider>
       <SpatialCanvasInner {...props} />
     </ReactFlowProvider>
   );
 }
+
+export default SpatialCanvasView;
